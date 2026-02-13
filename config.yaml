@@ -1,0 +1,35 @@
+# Locivox Configuration File
+
+# Model Settings
+model:
+  engine: "faster-whisper"  # Options: "faster-whisper", "openai-whisper"
+  size: "base"              # Options: "tiny", "base", "small", "medium", "large"
+  device: "cpu"             # Options: "cpu", "cuda"
+  compute_type: "int8"      # Options: "int8", "float16", "float32"
+  language: "en"            # ISO language code, or "auto" for detection
+  
+# Audio Settings
+audio:
+  sample_rate: 16000        # Whisper expects 16kHz
+  channels: 1               # Mono
+  chunk_duration: 5         # Seconds per processing chunk
+  silence_threshold: 0.01   # RMS threshold for silence detection
+  
+# Recording Settings
+recording:
+  format: "wav"             # Audio file format
+  auto_stop: false          # Auto-stop on silence (future feature)
+  max_duration: 3600        # Max recording time in seconds (1 hour)
+
+# Output Settings
+output:
+  directory: "./output"
+  format: "txt"             # Options: "txt", "json", "srt", "vtt"
+  timestamp: true           # Include timestamp in filename
+  include_timestamps: false # Include word-level timestamps in output
+  
+# Logging
+logging:
+  level: "INFO"             # Options: "DEBUG", "INFO", "WARNING", "ERROR"
+  file: "./logs/locivox.log"
+  console: true

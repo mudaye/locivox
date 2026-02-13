@@ -1,0 +1,163 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "locivox"
+version = "0.1.0"
+description = "Local Voice Transcription System - Privacy-first, model-agnostic speech-to-text"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+    {name = "Locivox Contributors"}
+]
+maintainers = [
+    {name = "Locivox Contributors"}
+]
+keywords = [
+    "speech-to-text",
+    "transcription",
+    "whisper",
+    "stt",
+    "voice-recognition",
+    "audio-processing",
+    "local-ai",
+    "privacy-first"
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "faster-whisper>=1.0.0",
+    "openai-whisper>=20231117",
+    "sounddevice>=0.4.6",
+    "numpy>=1.24.0,<2.0.0",
+    "soundfile>=0.12.1",
+    "librosa>=0.10.0",
+    "torch>=2.0.0",
+    "torchaudio>=2.0.0",
+    "pyyaml>=6.0.0",
+    "colorama>=0.4.6",
+    "tqdm>=4.66.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.7.0",
+    "flake8>=6.1.0",
+    "mypy>=1.5.0",
+    "isort>=5.12.0",
+]
+gui = [
+    "PyQt6>=6.5.0",
+]
+advanced = [
+    "pyannote-audio>=3.0.0",  # Speaker diarization
+    "webrtcvad>=2.0.10",       # Voice activity detection
+]
+
+[project.urls]
+Homepage = "https://github.com/mudaye/locivox"
+Documentation = "https://github.com/mudaye/locivox#readme"
+Repository = "https://github.com/mudaye/locivox"
+"Bug Tracker" = "https://github.com/mudaye/locivox/issues"
+Changelog = "https://github.com/mudaye/locivox/blob/main/CHANGELOG.md"
+
+[project.scripts]
+locivox = "src.cli:main"
+
+[tool.setuptools]
+packages = ["src"]
+
+[tool.setuptools.package-data]
+src = ["*.yaml", "*.yml"]
+
+[tool.black]
+line-length = 100
+target-version = ['py39', 'py310', 'py311', 'py312']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | venv
+  | \.mypy_cache
+  | \.pytest_cache
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 100
+multi_line_output = 3
+include_trailing_comma = true
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+
+[[tool.mypy.overrides]]
+module = [
+    "faster_whisper.*",
+    "whisper.*",
+    "sounddevice.*",
+    "soundfile.*",
+    "librosa.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--verbose",
+    "--cov=src",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+]
+
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]

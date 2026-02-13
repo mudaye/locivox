@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Locivox specific
+output/
+logs/
+models/
+*.wav
+*.mp3
+*.flac
+*.ogg
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Config overrides (keep default)
+config.local.yaml
+
+# Test files
+test_audio/
+temp/

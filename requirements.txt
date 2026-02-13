@@ -1,0 +1,22 @@
+# Core STT Models
+faster-whisper==1.0.3
+openai-whisper==20231117
+
+# Audio Processing
+sounddevice==0.4.6
+numpy==1.26.0
+soundfile==0.12.1
+librosa  # For audio resampling (included with openai-whisper)
+
+# ML Backend (CPU-optimized)
+--index-url https://download.pytorch.org/whl/cpu
+torch==2.1.0
+torchaudio==2.1.0
+
+# Utilities
+pyyaml==6.0.1
+colorama==0.4.6
+tqdm==4.66.1
+
+# Note: scipy removed (not needed, causes build issues on Windows)
+# Note: python-dotenv removed (not needed for Phase 1)
