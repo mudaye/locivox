@@ -8,8 +8,15 @@ from unittest.mock import Mock, patch, MagicMock
 from src.transcriber import (
     TranscriberFactory,
     FasterWhisperTranscriber,
-    OpenAIWhisperTranscriber
 )
+
+# Check if openai-whisper is available
+try:
+    from src.transcriber import OpenAIWhisperTranscriber
+    OPENAI_WHISPER_AVAILABLE = True
+except ImportError:
+    OPENAI_WHISPER_AVAILABLE = False
+    OpenAIWhisperTranscriber = None
 
 
 class TestTranscriberFactory:
@@ -23,6 +30,7 @@ class TestTranscriberFactory:
             transcriber = TranscriberFactory.create_transcriber(sample_config)
             assert isinstance(transcriber, FasterWhisperTranscriber)
     
+    @pytest.mark.skipif(not OPENAI_WHISPER_AVAILABLE, reason="openai-whisper not installed")
     def test_create_openai_whisper_transcriber(self, sample_config):
         """Test creating OpenAI-Whisper transcriber"""
         sample_config['model']['engine'] = 'openai-whisper'
@@ -117,6 +125,7 @@ class TestFasterWhisperTranscriber:
         assert call_args[1]['language'] is None
 
 
+@pytest.mark.skipif(not OPENAI_WHISPER_AVAILABLE, reason="openai-whisper not installed")
 class TestOpenAIWhisperTranscriber:
     """Tests for OpenAIWhisperTranscriber"""
     
