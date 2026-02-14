@@ -67,14 +67,12 @@ jobs:
     
     - name: Import test
       run: |
-        set PYTHONIOENCODING=utf-8
         python -c "import sys; print(f'Python {sys.version}')"
-        python -c "from src import utils, audio_capture, transcriber; print('✓ All modules importable')"
+        python -c "from src import utils, audio_capture, transcriber; print('All modules importable')"
     
     - name: Config validation
       run: |
-        set PYTHONIOENCODING=utf-8
-        python -c "from src.utils import load_config; config = load_config('config.yaml'); print('✓ Config valid')"
+        python -c "from src.utils import load_config; config = load_config('config.yaml'); print('Config valid')"
     
     - name: Run tests with pytest
       run: |
