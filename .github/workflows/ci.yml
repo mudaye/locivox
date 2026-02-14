@@ -65,17 +65,15 @@ jobs:
         # Exit-zero treats all errors as warnings
         flake8 src/ --count --exit-zero --max-complexity=10 --max-line-length=100 --statistics
     
-    - name: Set Python standard output encoding to UTF-8 (Windows)
-      if: runner.os == 'Windows'
-      run: set PYTHONIOENCODING=utf-8
-    
     - name: Import test
       run: |
+        set PYTHONIOENCODING=utf-8
         python -c "import sys; print(f'Python {sys.version}')"
         python -c "from src import utils, audio_capture, transcriber; print('✓ All modules importable')"
     
     - name: Config validation
       run: |
+        set PYTHONIOENCODING=utf-8
         python -c "from src.utils import load_config; config = load_config('config.yaml'); print('✓ Config valid')"
     
     - name: Run tests with pytest
