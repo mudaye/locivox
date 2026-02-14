@@ -21,6 +21,16 @@ recording:
   auto_stop: false          # Auto-stop on silence (future feature)
   max_duration: 3600        # Max recording time in seconds (1 hour)
 
+# Streaming Settings (Phase 2)
+streaming:
+  enabled: true             # Enable real-time streaming mode
+  chunk_size: 5.0           # Seconds of audio per chunk
+  chunk_overlap: 1.0        # Seconds of overlap between chunks
+  vad_enabled: true         # Enable Voice Activity Detection
+  vad_threshold: 0.5        # VAD confidence threshold (0.0-1.0)
+  buffer_size: 10           # Max chunks in buffer
+  min_speech_duration: 0.5  # Minimum seconds of speech to process
+
 # Output Settings
 output:
   directory: "./output"

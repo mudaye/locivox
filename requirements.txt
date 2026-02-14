@@ -7,6 +7,7 @@ sounddevice==0.4.6
 numpy==1.26.0
 soundfile==0.12.1
 librosa  # For audio resampling (included with openai-whisper)
+silero-vad>=4.0.0  # Voice Activity Detection for Phase 2
 
 # ML Backend (CPU-optimized)
 # Note: Install PyTorch with: pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
