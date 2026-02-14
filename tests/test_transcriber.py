@@ -42,7 +42,7 @@ class TestTranscriberFactory:
 class TestFasterWhisperTranscriber:
     """Tests for FasterWhisperTranscriber"""
     
-    @patch('src.transcriber.WhisperModel')
+    @patch('faster_whisper.WhisperModel')
     def test_init_loads_model(self, mock_model_class, sample_config):
         """Test that initialization loads the model"""
         mock_model = MagicMock()
@@ -57,7 +57,7 @@ class TestFasterWhisperTranscriber:
             compute_type='int8'
         )
     
-    @patch('src.transcriber.WhisperModel')
+    @patch('faster_whisper.WhisperModel')
     def test_transcribe_returns_dict(self, mock_model_class, sample_config, sample_audio_data):
         """Test that transcribe returns a dictionary with expected keys"""
         mock_model = MagicMock()
@@ -82,7 +82,7 @@ class TestFasterWhisperTranscriber:
         assert 'language' in result
         assert result['text'] == "Test transcription"
     
-    @patch('src.transcriber.WhisperModel')
+    @patch('faster_whisper.WhisperModel')
     def test_transcribe_handles_stereo_audio(self, mock_model_class, sample_config):
         """Test that transcribe handles stereo audio by flattening"""
         mock_model = MagicMock()
@@ -100,7 +100,7 @@ class TestFasterWhisperTranscriber:
         audio_arg = call_args[0][0]
         assert len(audio_arg.shape) == 1
     
-    @patch('src.transcriber.WhisperModel')
+    @patch('faster_whisper.WhisperModel')
     def test_transcribe_with_auto_language(self, mock_model_class, sample_config, sample_audio_data):
         """Test transcription with automatic language detection"""
         sample_config['model']['language'] = 'auto'
@@ -120,19 +120,19 @@ class TestFasterWhisperTranscriber:
 class TestOpenAIWhisperTranscriber:
     """Tests for OpenAIWhisperTranscriber"""
     
-    @patch('src.transcriber.whisper')
-    def test_init_loads_model(self, mock_whisper, sample_config):
+    @patch('whisper.load_model')
+    def test_init_loads_model(self, mock_load_model, sample_config):
         """Test that initialization loads the model"""
         mock_model = MagicMock()
-        mock_whisper.load_model.return_value = mock_model
+        mock_load_model.return_value = mock_model
         
         transcriber = OpenAIWhisperTranscriber(sample_config)
         
         assert transcriber.model is not None
-        mock_whisper.load_model.assert_called_once_with('tiny', device='cpu')
+        mock_load_model.assert_called_once_with('tiny', device='cpu')
     
-    @patch('src.transcriber.whisper')
-    def test_transcribe_returns_dict(self, mock_whisper, sample_config, sample_audio_data):
+    @patch('whisper.load_model')
+    def test_transcribe_returns_dict(self, mock_load_model, sample_config, sample_audio_data):
         """Test that transcribe returns a dictionary"""
         mock_model = MagicMock()
         mock_model.transcribe.return_value = {
@@ -140,7 +140,7 @@ class TestOpenAIWhisperTranscriber:
             'segments': [],
             'language': 'en'
         }
-        mock_whisper.load_model.return_value = mock_model
+        mock_load_model.return_value = mock_model
         
         transcriber = OpenAIWhisperTranscriber(sample_config)
         result = transcriber.transcribe(sample_audio_data)
@@ -149,12 +149,12 @@ class TestOpenAIWhisperTranscriber:
         assert 'text' in result
         assert result['text'] == 'Test transcription'
     
-    @patch('src.transcriber.whisper')
-    def test_transcribe_converts_audio_dtype(self, mock_whisper, sample_config):
+    @patch('whisper.load_model')
+    def test_transcribe_converts_audio_dtype(self, mock_load_model, sample_config):
         """Test that transcribe converts audio to float32"""
         mock_model = MagicMock()
         mock_model.transcribe.return_value = {'text': '', 'language': 'en'}
-        mock_whisper.load_model.return_value = mock_model
+        mock_load_model.return_value = mock_model
         
         # Create int16 audio
         audio = np.random.randint(-32768, 32767, 1000, dtype=np.int16)
@@ -171,7 +171,7 @@ class TestOpenAIWhisperTranscriber:
 class TestTranscriberErrorHandling:
     """Tests for error handling in transcribers"""
     
-    @patch('src.transcriber.WhisperModel')
+    @patch('faster_whisper.WhisperModel')
     def test_transcribe_with_unloaded_model_raises_error(self, mock_model_class, sample_config, sample_audio_data):
         """Test that transcribing with unloaded model raises RuntimeError"""
         mock_model_class.return_value = None
@@ -182,7 +182,7 @@ class TestTranscriberErrorHandling:
         with pytest.raises(RuntimeError, match="Model not loaded"):
             transcriber.transcribe(sample_audio_data)
     
-    @patch('src.transcriber.WhisperModel')
+    @patch('faster_whisper.WhisperModel')
     def test_load_model_import_error(self, mock_model_class, sample_config):
         """Test handling of ImportError when model package not installed"""
         mock_model_class.side_effect = ImportError("faster-whisper not installed")

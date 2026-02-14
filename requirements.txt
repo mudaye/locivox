@@ -9,7 +9,7 @@ soundfile==0.12.1
 librosa  # For audio resampling (included with openai-whisper)
 
 # ML Backend (CPU-optimized)
---index-url https://download.pytorch.org/whl/cpu
+# Note: Install PyTorch with: pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
 torch==2.1.0
 torchaudio==2.1.0
 

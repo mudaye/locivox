@@ -39,9 +39,9 @@ test_audio/
 temp/
 
 # PyTest and Coverage
-.coverage           # Coverage data file (not .coverage/)
-.coverage.*         # Coverage data files from parallel runs
-htmlcov/            # HTML coverage reports
-.pytest_cache/      # PyTest cache directory
-*.log               # Log files including pytest.log
-coverage.xml        # Coverage XML report (for CI/Codecov)
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+*.log
+coverage.xml

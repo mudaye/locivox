@@ -10,9 +10,17 @@ jobs:
   test:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        # Primary testing on Linux (fastest, most reliable)
+        os: [ubuntu-latest]
         python-version: ['3.9', '3.10', '3.11', '3.12']
+        # Include one Windows and one macOS for compatibility checks
+        include:
+          - os: windows-latest
+            python-version: '3.11'
+          - os: macos-latest
+            python-version: '3.11'
     
     steps:
     - uses: actions/checkout@v4
@@ -57,13 +65,14 @@ jobs:
       run: |
         python -c "from src.utils import load_config; config = load_config('config.yaml'); print('✓ Config valid')"
     
-    # Uncomment when tests are added
-    # - name: Run tests
-    #   run: |
-    #     pip install pytest pytest-cov
-    #     pytest tests/ --cov=src --cov-report=xml
+    - name: Run tests with pytest
+      run: |
+        pip install pytest pytest-cov pytest-mock
+        pytest tests/ -v --cov=src --cov-report=xml --cov-report=term
     
-    # - name: Upload coverage
-    #   uses: codecov/codecov-action@v3
-    #   with:
-    #     file: ./coverage.xml
+    - name: Upload coverage to Codecov
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        fail_ci_if_error: false

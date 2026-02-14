@@ -39,14 +39,14 @@ class TestAudioCaptureDetectSilence:
         capture = AudioCapture(sample_config)
         is_silent = capture.detect_silence(silent_audio_data)
         
-        assert is_silent is True
+        assert is_silent == True  # Use == for NumPy bool compatibility
     
     def test_detect_silence_with_audio(self, sample_config, sample_audio_data):
         """Test that audio is not detected as silence"""
         capture = AudioCapture(sample_config)
         is_silent = capture.detect_silence(sample_audio_data)
         
-        assert is_silent is False
+        assert is_silent == False  # Use == for NumPy bool compatibility
     
     def test_detect_silence_with_custom_threshold(self, sample_config, sample_audio_data):
         """Test silence detection with custom threshold"""
@@ -54,11 +54,11 @@ class TestAudioCaptureDetectSilence:
         
         # Very high threshold - should detect as silence
         is_silent = capture.detect_silence(sample_audio_data, threshold=10.0)
-        assert is_silent is True
+        assert is_silent == True  # Use == for NumPy bool compatibility
         
         # Very low threshold - should not detect as silence
         is_silent = capture.detect_silence(sample_audio_data, threshold=0.0001)
-        assert is_silent is False
+        assert is_silent == False  # Use == for NumPy bool compatibility
 
 
 class TestAudioCaptureSaveAudio:

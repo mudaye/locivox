@@ -48,7 +48,9 @@ class TestGenerateOutputFilename:
         sample_config['output']['timestamp'] = False
         filename = generate_output_filename(sample_config)
         
-        assert filename == './output/transcript.txt'
+        # Normalize paths for cross-platform comparison
+        from pathlib import Path
+        assert Path(filename) == Path('./output/transcript.txt')
     
     def test_generate_with_custom_format(self, sample_config):
         """Test filename generation with custom format"""
