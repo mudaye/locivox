@@ -1,0 +1,50 @@
+# Locivox Custom Vocabulary File
+# Format: correct_term: variation1, variation2, variation3
+# Or just: correct_term
+
+# Programming Languages & Frameworks
+Python
+JavaScript
+TypeScript
+React
+Vue.js: view js, view, vue
+Next.js: next js, next
+FastAPI: fast api, fast a p i
+Django: jango, django
+Flask
+
+# Cloud & DevOps
+Kubernetes: coober netes, kube ernetes, k8s, k 8 s
+Docker: docker
+AWS: a w s, amazon web services
+Azure: asher, azure
+Terraform: terra form, terraform
+Jenkins: jenkins
+
+# Databases
+PostgreSQL: postgres, postgre, post gres, post gre s q l
+MongoDB: mongo db, mongo
+Redis: reddis, redis
+Elasticsearch: elastic search, elastic
+
+# Tech Terms
+API: a p i, ay pee eye
+REST: rest
+GraphQL: graph q l, graph ql
+WebSocket: web socket, websocket
+OAuth: o auth, oauth
+JWT: j w t, jay double u tee
+
+# Machine Learning
+TensorFlow: tensor flow, tensorflow
+PyTorch: py torch, pytorch
+scikit-learn: scikit learn, sci kit learn
+NumPy: num pie, numpy
+Pandas: pandas
+
+# Your Custom Terms (Add your own below)
+# Example:
+# ProjectName: project name
+# TeamMemberName
+# CompanySpecificTerm: common misheard version
+locivox: low-sign works, lo sigh voks

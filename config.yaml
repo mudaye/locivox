@@ -31,12 +31,41 @@ streaming:
   buffer_size: 10           # Max chunks in buffer
   min_speech_duration: 0.5  # Minimum seconds of speech to process
 
+# Batch Processing Settings (Phase 3)
+batch:
+  extensions: [".wav", ".mp3", ".flac", ".m4a", ".ogg", ".opus"]
+  recursive: false          # Process subdirectories
+  overwrite: false          # Overwrite existing transcriptions
+  show_progress: true       # Show progress bar
+  save_report: false        # Auto-save processing report
+  report_file: "./batch_report.json"
+
+# Folder Watching Settings (Phase 3)
+watcher:
+  poll_interval: 2.0        # Seconds between directory scans
+  process_existing: false   # Process files that exist at startup
+  extensions: [".wav", ".mp3", ".flac", ".m4a", ".ogg", ".opus"]
+
 # Output Settings
 output:
   directory: "./output"
   format: "txt"             # Options: "txt", "json", "srt", "vtt"
   timestamp: true           # Include timestamp in filename
   include_timestamps: false # Include word-level timestamps in output
+
+# Custom Vocabulary (Phase 3)
+vocabulary:
+  enabled: false            # Enable custom vocabulary
+  file: "./vocabulary.txt"  # Path to vocabulary file
+  case_sensitive: false     # Case-sensitive matching
+  fuzzy_threshold: 0.85     # Fuzzy matching threshold (0.0-1.0, 1.0=exact only)
+  terms:                    # Inline terms (optional)
+    - correct: "Kubernetes"
+      variations: ["kubernetes", "coober netes", "kube ernetes"]
+    - correct: "PostgreSQL"
+      variations: ["postgres", "postgre", "post gres"]
+    - correct: "FastAPI"
+      variations: ["fast api", "fast a p i"]
   
 # Logging
 logging:

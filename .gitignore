@@ -37,6 +37,7 @@ config.local.yaml
 # Test files
 test_audio/
 temp/
+voice_notes/
 
 # PyTest and Coverage
 .coverage
