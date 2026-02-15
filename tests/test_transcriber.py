@@ -13,6 +13,7 @@ from src.transcriber import (
 # Check if openai-whisper is available
 try:
     import whisper
+    from src.transcriber import OpenAIWhisperTranscriber
     OPENAI_WHISPER_AVAILABLE = True
 except ImportError:
     OPENAI_WHISPER_AVAILABLE = False

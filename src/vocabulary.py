@@ -174,6 +174,12 @@ class VocabularyManager:
                 result_words.append(word)
                 continue
             
+            # Skip if word is already a correct vocabulary term (case-insensitive check)
+            is_vocab_term = any(clean_word.lower() == term.lower() for term in self.terms.keys())
+            if is_vocab_term:
+                result_words.append(word)
+                continue
+            
             # Try fuzzy matching against known terms
             best_match = None
             best_score = 0.0
@@ -187,9 +193,19 @@ class VocabularyManager:
                     best_match = correct_term
             
             if best_match:
-                # Preserve case and punctuation
-                replacement = self._preserve_case(word, clean_word, best_match)
+                # FIX: Use regex to capture punctuation at the edges
+                # ^\W* matches non-word characters at the start
+                # \W*$ matches non-word characters at the end
+                prefix_match = re.search(r'^\W*', word)
+                suffix_match = re.search(r'\W*$', word)
+                
+                prefix = prefix_match.group() if prefix_match else ""
+                suffix = suffix_match.group() if suffix_match else ""
+                
+                replacement = prefix + best_match + suffix
+                
                 result_words.append(replacement)
+                
                 if clean_word.lower() != best_match.lower():
                     tracking.append(f"{clean_word} → {best_match} (fuzzy: {best_score:.2f})")
             else:
@@ -204,22 +220,6 @@ class VocabularyManager:
             b = b.lower()
         
         return SequenceMatcher(None, a, b).ratio()
-    
-    def _preserve_case(self, original: str, clean: str, replacement: str) -> str:
-        """Preserve punctuation and case from original word"""
-        # Get punctuation
-        prefix = original[:len(original) - len(original.lstrip())]
-        suffix = original[len(original.rstrip()):]
-        
-        # Match case
-        if clean.isupper():
-            replacement = replacement.upper()
-        elif clean[0].isupper() if clean else False:
-            replacement = replacement.capitalize()
-        else:
-            replacement = replacement.lower()
-        
-        return prefix + replacement + suffix
     
     def get_stats(self) -> dict:
         """Get vocabulary statistics"""

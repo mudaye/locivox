@@ -52,9 +52,9 @@ class AudioBuffer:
             if audio_data.dtype != np.float32:
                 audio_data = audio_data.astype(np.float32)
             
-            # Flatten if stereo
+            # Convert stereo to mono by averaging channels
             if len(audio_data.shape) > 1:
-                audio_data = audio_data.flatten()
+                audio_data = audio_data.mean(axis=1)
             
             # Append to buffer
             self.buffer = np.concatenate([self.buffer, audio_data])
