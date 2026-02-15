@@ -1,0 +1,190 @@
+"""
+Main application window for Locivox GUI
+"""
+
+from PyQt6.QtWidgets import (
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QStatusBar, QMenuBar, QMenu
+)
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QAction, QKeySequence
+import logging
+
+from .transcription_widget import TranscriptionWidget
+from .controls_widget import ControlsWidget
+
+
+class MainWindow(QMainWindow):
+    """Main application window"""
+    
+    # Signals
+    start_requested = pyqtSignal()
+    stop_requested = pyqtSignal()
+    pause_requested = pyqtSignal()
+    settings_requested = pyqtSignal()
+    vocabulary_requested = pyqtSignal()
+    export_requested = pyqtSignal()
+    mic_changed = pyqtSignal(int)  # microphone device index
+    
+    def __init__(self):
+        super().__init__()
+        self.logger = logging.getLogger('locivox.gui')
+        self.logger.info("Initializing main window")
+        
+        self.init_ui()
+        self.create_menu_bar()
+        self.create_status_bar()
+        
+    def init_ui(self):
+        """Initialize the user interface"""
+        self.setWindowTitle("Locivox - Local Voice Transcription")
+        self.setMinimumSize(800, 600)
+        
+        # Central widget
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        
+        # Main layout
+        main_layout = QVBoxLayout()
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setSpacing(10)
+        
+        # Controls at top
+        self.controls = ControlsWidget()
+        main_layout.addWidget(self.controls)
+        
+        # Transcription display (takes most space)
+        self.transcription = TranscriptionWidget()
+        main_layout.addWidget(self.transcription, stretch=1)
+        
+        central_widget.setLayout(main_layout)
+        
+        # Connect control signals
+        self.controls.start_clicked.connect(self.on_start)
+        self.controls.stop_clicked.connect(self.on_stop)
+        self.controls.pause_clicked.connect(self.on_pause)
+        self.controls.clear_clicked.connect(self.transcription.clear)
+        self.controls.mic_changed.connect(self.on_mic_changed)
+        
+    def create_menu_bar(self):
+        """Create application menu bar"""
+        menubar = self.menuBar()
+        
+        # File menu
+        file_menu = menubar.addMenu("&File")
+        
+        export_action = QAction("&Export...", self)
+        export_action.setShortcut(QKeySequence.StandardKey.Save)
+        export_action.triggered.connect(self.on_export)
+        file_menu.addAction(export_action)
+        
+        file_menu.addSeparator()
+        
+        quit_action = QAction("&Quit", self)
+        quit_action.setShortcut(QKeySequence.StandardKey.Quit)
+        quit_action.triggered.connect(self.close)
+        file_menu.addAction(quit_action)
+        
+        # Edit menu
+        edit_menu = menubar.addMenu("&Edit")
+        
+        clear_action = QAction("&Clear Transcription", self)
+        clear_action.setShortcut(QKeySequence("Ctrl+L"))
+        clear_action.triggered.connect(self.transcription.clear)
+        edit_menu.addAction(clear_action)
+        
+        edit_menu.addSeparator()
+        
+        settings_action = QAction("&Settings...", self)
+        settings_action.setShortcut(QKeySequence.StandardKey.Preferences)
+        settings_action.triggered.connect(self.on_settings)
+        edit_menu.addAction(settings_action)
+        
+        vocab_action = QAction("&Vocabulary...", self)
+        vocab_action.setShortcut(QKeySequence("Ctrl+V"))
+        vocab_action.triggered.connect(self.on_vocabulary)
+        edit_menu.addAction(vocab_action)
+        
+        # Help menu
+        help_menu = menubar.addMenu("&Help")
+        
+        about_action = QAction("&About Locivox", self)
+        about_action.triggered.connect(self.on_about)
+        help_menu.addAction(about_action)
+        
+    def create_status_bar(self):
+        """Create status bar"""
+        self.status_bar = QStatusBar()
+        self.setStatusBar(self.status_bar)
+        self.status_bar.showMessage("Ready")
+        
+    # Slot methods
+    def on_start(self):
+        """Handle start button"""
+        self.logger.info("Start requested")
+        self.start_requested.emit()
+        self.update_status("Recording...")
+        
+    def on_stop(self):
+        """Handle stop button"""
+        self.logger.info("Stop requested")
+        self.stop_requested.emit()
+        self.update_status("Stopped")
+        
+    def on_pause(self):
+        """Handle pause button"""
+        self.logger.info("Pause requested")
+        self.pause_requested.emit()
+    
+    def on_mic_changed(self, device_index: int):
+        """Handle microphone selection change"""
+        self.logger.info(f"Microphone changed to device index: {device_index}")
+        self.mic_changed.emit(device_index)
+        
+    def on_settings(self):
+        """Handle settings menu"""
+        self.logger.info("Settings requested")
+        self.settings_requested.emit()
+        
+    def on_vocabulary(self):
+        """Handle vocabulary menu"""
+        self.logger.info("Vocabulary requested")
+        self.vocabulary_requested.emit()
+        
+    def on_export(self):
+        """Handle export menu"""
+        self.logger.info("Export requested")
+        self.export_requested.emit()
+        
+    def on_about(self):
+        """Handle about menu"""
+        from PyQt6.QtWidgets import QMessageBox
+        
+        QMessageBox.about(
+            self,
+            "About Locivox",
+            "<h2>Locivox</h2>"
+            "<p>Privacy-first local speech-to-text transcription</p>"
+            "<p>Version 1.0</p>"
+            "<p>Built with Faster-Whisper and PyQt6</p>"
+        )
+        
+    # Public methods
+    def update_status(self, message: str):
+        """Update status bar message"""
+        self.status_bar.showMessage(message)
+        
+    def append_transcription(self, text: str, is_final: bool = False):
+        """Add transcription text"""
+        self.transcription.append_text(text, is_final)
+        
+    def set_controls_enabled(self, start: bool = True, stop: bool = False, pause: bool = False):
+        """Enable/disable control buttons"""
+        self.controls.set_buttons_enabled(start, stop, pause)
+        
+    def closeEvent(self, event):
+        """Handle window close"""
+        self.logger.info("Main window closing")
+        # Emit stop signal to ensure cleanup
+        self.stop_requested.emit()
+        event.accept()

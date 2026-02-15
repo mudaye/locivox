@@ -1,5 +1,11 @@
 # Locivox Configuration File
 
+# Logging Configuration
+logging:
+  level: "INFO"           # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  file: "locivox_gui.log" # Log file path
+
+
 # Model Settings
 model:
   engine: "faster-whisper"  # Options: "faster-whisper", "openai-whisper"
@@ -23,7 +29,7 @@ recording:
 
 # Streaming Settings (Phase 2)
 streaming:
-  enabled: true             # Enable real-time streaming mode
+  enabled: false            # Enable real-time streaming mode
   chunk_size: 5.0           # Seconds of audio per chunk
   chunk_overlap: 1.0        # Seconds of overlap between chunks
   vad_enabled: true         # Enable Voice Activity Detection
@@ -55,7 +61,7 @@ output:
 
 # Custom Vocabulary (Phase 3)
 vocabulary:
-  enabled: true             # Enable custom vocabulary
+  enabled: false            # Enable custom vocabulary
   file: "./vocabulary.txt"  # Path to vocabulary file
   case_sensitive: false     # Case-sensitive matching
   

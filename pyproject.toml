@@ -81,6 +81,7 @@ Changelog = "https://github.com/mudaye/locivox/blob/main/CHANGELOG.md"
 [project.scripts]
 locivox = "src.cli:main"
 locivox-stream = "src.cli_streaming:main"
+locivox-gui = "src.gui_main:main"
 
 [tool.setuptools]
 packages = ["src"]

@@ -17,7 +17,10 @@ torchaudio==2.1.0
 # Utilities
 pyyaml==6.0.1
 colorama==0.4.6
-tqdm==4.66.1
+tqdm==4.66.1  # Progress bars for batch processing
 
 # Note: scipy removed (not needed, causes build issues on Windows)
 # Note: python-dotenv removed (not needed for Phase 1)
+
+# GUI (Phase 4)
+PyQt6==6.7.1
