@@ -70,15 +70,7 @@ vocabulary:
     library: "fuzzy"        # Options: "fuzzy", "jellyfish", "abydos"
     fuzzy_threshold: 0.85   # Threshold for fuzzy matching (0.0-1.0)
     abydos_algorithm: "DoubleMetaphone"  # Algorithm for abydos (if used)
-  
-  terms:                    # Inline terms (optional)
-    - correct: "Kubernetes"
-      variations: ["kubernetes", "coober netes", "kube ernetes"]
-    - correct: "PostgreSQL"
-      variations: ["postgres", "postgre", "post gres"]
-    - correct: "FastAPI"
-      variations: ["fast api", "fast a p i"]
-  
+
 # Logging
 logging:
   level: "INFO"             # Options: "DEBUG", "INFO", "WARNING", "ERROR"

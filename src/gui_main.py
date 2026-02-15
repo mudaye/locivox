@@ -120,7 +120,6 @@ def main():
         # Connect controller to window
         window.start_requested.connect(controller.start_recording)
         window.stop_requested.connect(controller.stop_recording)
-        window.pause_requested.connect(controller.pause_recording)
         window.mic_changed.connect(controller.set_microphone_device)
         
         # Connect controller signals to window

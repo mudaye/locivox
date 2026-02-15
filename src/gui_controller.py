@@ -29,6 +29,8 @@ class TranscriptionWorker(QThread):
         self.transcriber: Optional[StreamingTranscriber] = None
         self.is_running = False
         self._audio_queue = []
+        self._last_final_text = ""  # Track last finalized transcription
+        self._last_interim_text = ""  # Track last interim transcription
         
     def run(self):
         """Main worker thread execution"""
@@ -71,13 +73,52 @@ class TranscriptionWorker(QThread):
             self.logger.info(f"Is final: {is_final}")
             self.logger.info(f"Text length: {len(text) if text else 0}")
             
-            if text and text.strip():
-                self.logger.info(f"Emitting transcription: {text}")
-                self.transcription_ready.emit(text, is_final)
+            if not text or not text.strip():
+                self.logger.debug("Skipping empty transcription")
+                return
+            
+            # Deduplicate text
+            deduplicated_text = self._deduplicate_text(text, is_final)
+            
+            if deduplicated_text and deduplicated_text.strip():
+                self.logger.info(f"Emitting transcription: {deduplicated_text}")
+                self.transcription_ready.emit(deduplicated_text, is_final)
             else:
-                self.logger.debug(f"Skipping empty transcription")
+                self.logger.debug("Skipping duplicate transcription")
+                
         except Exception as e:
             self.logger.error(f"Error in transcription callback: {e}", exc_info=True)
+    
+    def _deduplicate_text(self, text: str, is_final: bool) -> str:
+        """
+        Remove duplicate text from transcription
+        
+        Args:
+            text: New transcription text
+            is_final: Whether this is final or interim
+            
+        Returns:
+            Deduplicated text (only new portion)
+        """
+        # Compare with last transcription
+        last_text = self._last_final_text if is_final else self._last_interim_text
+        
+        # If new text starts with last text, extract only the new part
+        if text.startswith(last_text):
+            new_text = text[len(last_text):].strip()
+            self.logger.debug(f"Deduplicated: '{last_text}...' → '{new_text}'")
+        else:
+            # Completely new text (or different enough)
+            new_text = text
+        
+        # Update tracking
+        if is_final:
+            self._last_final_text = text
+            self._last_interim_text = ""  # Reset interim
+        else:
+            self._last_interim_text = text
+        
+        return new_text
             
     def add_audio(self, audio_data: np.ndarray):
         """Add audio data to transcriber"""
@@ -219,7 +260,6 @@ class GUIController(QObject):
         
         # State
         self.is_recording = False
-        self.is_paused = False
         self.selected_mic_device = None  # Selected microphone device index
         
         self.logger.info("GUI Controller initialized")
@@ -307,14 +347,11 @@ class GUIController(QObject):
         """Handle audio data from capture worker"""
         self.logger.debug(f"Audio chunk received: {len(audio_data)} samples")
         
-        if self.transcription_worker and not self.is_paused:
+        if self.transcription_worker:
             self.logger.debug(f"Adding audio to transcriber")
             self.transcription_worker.add_audio(audio_data)
         else:
-            if not self.transcription_worker:
-                self.logger.warning("No transcription worker - dropping audio")
-            if self.is_paused:
-                self.logger.debug("Paused - dropping audio")
+            self.logger.warning("No transcription worker - dropping audio")
     
     @pyqtSlot(str)
     def on_status_changed(self, status: str):
@@ -346,20 +383,10 @@ class GUIController(QObject):
                 self.audio_worker = None
                 
             self.is_recording = False
-            self.is_paused = False
             self.status_changed.emit("Recording stopped")
             
         except Exception as e:
             self.logger.error(f"Error stopping recording: {e}", exc_info=True)
-            
-    def pause_recording(self):
-        """Pause/resume recording"""
-        self.is_paused = not self.is_paused
-        
-        if self.is_paused:
-            self.status_changed.emit("Recording paused")
-        else:
-            self.status_changed.emit("Recording resumed")
     
     def set_microphone_device(self, device_index: int):
         """Set the microphone device to use for recording"""
@@ -393,8 +420,7 @@ class GUIController(QObject):
     @pyqtSlot(str, bool)
     def on_transcription_ready(self, text: str, is_final: bool):
         """Handle transcription result from worker"""
-        if not self.is_paused:
-            self.transcription_ready.emit(text, is_final)
+        self.transcription_ready.emit(text, is_final)
             
     @pyqtSlot(str)
     def on_error(self, error: str):

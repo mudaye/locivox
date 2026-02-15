@@ -20,7 +20,6 @@ class MainWindow(QMainWindow):
     # Signals
     start_requested = pyqtSignal()
     stop_requested = pyqtSignal()
-    pause_requested = pyqtSignal()
     settings_requested = pyqtSignal()
     vocabulary_requested = pyqtSignal()
     export_requested = pyqtSignal()
@@ -62,8 +61,8 @@ class MainWindow(QMainWindow):
         # Connect control signals
         self.controls.start_clicked.connect(self.on_start)
         self.controls.stop_clicked.connect(self.on_stop)
-        self.controls.pause_clicked.connect(self.on_pause)
         self.controls.clear_clicked.connect(self.transcription.clear)
+        self.controls.copy_clicked.connect(self.on_copy)
         self.controls.mic_changed.connect(self.on_mic_changed)
         
     def create_menu_bar(self):
@@ -130,16 +129,28 @@ class MainWindow(QMainWindow):
         self.logger.info("Stop requested")
         self.stop_requested.emit()
         self.update_status("Stopped")
-        
-    def on_pause(self):
-        """Handle pause button"""
-        self.logger.info("Pause requested")
-        self.pause_requested.emit()
     
     def on_mic_changed(self, device_index: int):
         """Handle microphone selection change"""
         self.logger.info(f"Microphone changed to device index: {device_index}")
         self.mic_changed.emit(device_index)
+    
+    def on_copy(self):
+        """Handle copy button - copy transcription to clipboard"""
+        from PyQt6.QtWidgets import QApplication
+        
+        text = self.transcription.get_text()
+        
+        if not text:
+            self.update_status("Nothing to copy")
+            return
+        
+        # Copy to clipboard
+        clipboard = QApplication.clipboard()
+        clipboard.setText(text)
+        
+        self.update_status(f"Copied {len(text)} characters to clipboard")
+        self.logger.info(f"Copied {len(text)} characters to clipboard")
         
     def on_settings(self):
         """Handle settings menu"""
@@ -154,7 +165,21 @@ class MainWindow(QMainWindow):
     def on_export(self):
         """Handle export menu"""
         self.logger.info("Export requested")
-        self.export_requested.emit()
+        
+        # Get transcription text
+        text = self.transcription.get_text()
+        
+        if not text:
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.information(
+                self,
+                "No Content",
+                "There is no transcription to export."
+            )
+            return
+        
+        # Show export dialog
+        self._show_export_dialog(text)
         
     def on_about(self):
         """Handle about menu"""
@@ -178,9 +203,9 @@ class MainWindow(QMainWindow):
         """Add transcription text"""
         self.transcription.append_text(text, is_final)
         
-    def set_controls_enabled(self, start: bool = True, stop: bool = False, pause: bool = False):
+    def set_controls_enabled(self, start: bool = True, stop: bool = False):
         """Enable/disable control buttons"""
-        self.controls.set_buttons_enabled(start, stop, pause)
+        self.controls.set_buttons_enabled(start, stop)
         
     def closeEvent(self, event):
         """Handle window close"""
@@ -188,3 +213,92 @@ class MainWindow(QMainWindow):
         # Emit stop signal to ensure cleanup
         self.stop_requested.emit()
         event.accept()
+    
+    def _show_export_dialog(self, text: str):
+        """Show export options dialog"""
+        from PyQt6.QtWidgets import QFileDialog, QMessageBox
+        from datetime import datetime
+        import json
+        
+        # Ask user for format and filename
+        filename, selected_filter = QFileDialog.getSaveFileName(
+            self,
+            "Export Transcription",
+            f"transcription_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+            "Text File (*.txt);;JSON File (*.json);;SRT Subtitle (*.srt);;All Files (*.*)"
+        )
+        
+        if not filename:
+            return  # User cancelled
+        
+        try:
+            # Determine format from filename
+            if filename.endswith('.json'):
+                self._export_json(filename, text)
+            elif filename.endswith('.srt'):
+                self._export_srt(filename, text)
+            else:
+                self._export_txt(filename, text)
+            
+            QMessageBox.information(
+                self,
+                "Export Successful",
+                f"Transcription exported to:\n{filename}"
+            )
+            self.logger.info(f"Exported to: {filename}")
+            
+        except Exception as e:
+            self.logger.error(f"Export failed: {e}", exc_info=True)
+            QMessageBox.critical(
+                self,
+                "Export Failed",
+                f"Failed to export transcription:\n{e}"
+            )
+    
+    def _export_txt(self, filename: str, text: str):
+        """Export as plain text"""
+        with open(filename, 'w', encoding='utf-8') as f:
+            f.write(text)
+    
+    def _export_json(self, filename: str, text: str):
+        """Export as JSON with metadata"""
+        from datetime import datetime
+        import json
+        
+        data = {
+            "transcription": text,
+            "timestamp": datetime.now().isoformat(),
+            "word_count": len(text.split()),
+            "character_count": len(text),
+            "model": self.controls.get_selected_model(),
+            "device": self.controls.get_selected_device()
+        }
+        
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+    
+    def _export_srt(self, filename: str, text: str):
+        """Export as SRT subtitle format"""
+        # Simple implementation: one subtitle per sentence
+        # TODO: Add actual timestamps when we track them
+        
+        sentences = text.replace('! ', '!|').replace('? ', '?|').replace('. ', '.|').split('|')
+        sentences = [s.strip() for s in sentences if s.strip()]
+        
+        with open(filename, 'w', encoding='utf-8') as f:
+            for i, sentence in enumerate(sentences, 1):
+                # Fake timestamps for now (5 seconds per sentence)
+                start_time = self._format_srt_time(i * 5)
+                end_time = self._format_srt_time((i + 1) * 5)
+                
+                f.write(f"{i}\n")
+                f.write(f"{start_time} --> {end_time}\n")
+                f.write(f"{sentence}\n")
+                f.write("\n")
+    
+    def _format_srt_time(self, seconds: int) -> str:
+        """Format seconds as SRT timestamp (HH:MM:SS,mmm)"""
+        hours = seconds // 3600
+        minutes = (seconds % 3600) // 60
+        secs = seconds % 60
+        return f"{hours:02d}:{minutes:02d}:{secs:02d},000"

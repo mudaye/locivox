@@ -1,6 +1,6 @@
 """
 Control buttons widget
-Start/Stop/Pause/Clear controls for transcription
+Start/Stop/Clear controls for transcription
 """
 
 from PyQt6.QtWidgets import (
@@ -18,8 +18,8 @@ class ControlsWidget(QWidget):
     # Signals
     start_clicked = pyqtSignal()
     stop_clicked = pyqtSignal()
-    pause_clicked = pyqtSignal()
     clear_clicked = pyqtSignal()
+    copy_clicked = pyqtSignal()
     model_changed = pyqtSignal(str)
     device_changed = pyqtSignal(str)
     mic_changed = pyqtSignal(int)  # device index
@@ -30,7 +30,6 @@ class ControlsWidget(QWidget):
         self.logger = logging.getLogger('locivox.gui.controls')
         
         self.is_recording = False
-        self.is_paused = False
         self.recording_time = 0
         
         self.init_ui()
@@ -93,30 +92,6 @@ class ControlsWidget(QWidget):
         self.stop_btn.clicked.connect(self.on_stop)
         layout.addWidget(self.stop_btn)
         
-        self.pause_btn = QPushButton("Pause")
-        self.pause_btn.setMinimumWidth(100)
-        self.pause_btn.setEnabled(False)
-        self.pause_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #FF9800;
-                color: white;
-                border: none;
-                padding: 10px;
-                border-radius: 5px;
-                font-weight: bold;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #e68900;
-            }
-            QPushButton:disabled {
-                background-color: #cccccc;
-                color: #666666;
-            }
-        """)
-        self.pause_btn.clicked.connect(self.on_pause)
-        layout.addWidget(self.pause_btn)
-        
         self.clear_btn = QPushButton("Clear")
         self.clear_btn.setMinimumWidth(100)
         self.clear_btn.setStyleSheet("""
@@ -135,6 +110,26 @@ class ControlsWidget(QWidget):
         """)
         self.clear_btn.clicked.connect(self.on_clear)
         layout.addWidget(self.clear_btn)
+        
+        self.copy_btn = QPushButton("Copy")
+        self.copy_btn.setMinimumWidth(100)
+        self.copy_btn.setToolTip("Copy transcription to clipboard")
+        self.copy_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2196F3;
+                color: white;
+                border: none;
+                padding: 10px;
+                border-radius: 5px;
+                font-weight: bold;
+                font-size: 12px;
+            }
+            QPushButton:hover {
+                background-color: #1976D2;
+            }
+        """)
+        self.copy_btn.clicked.connect(self.on_copy)
+        layout.addWidget(self.copy_btn)
         
         # Spacer
         layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
@@ -195,7 +190,6 @@ class ControlsWidget(QWidget):
         # Disable ALL buttons while initializing
         self.start_btn.setEnabled(False)
         self.stop_btn.setEnabled(False)  # Can't stop yet
-        self.pause_btn.setEnabled(False)  # Can't pause yet
         self.clear_btn.setEnabled(False)  # Prevent clear during init
         self.model_combo.setEnabled(False)
         self.device_combo.setEnabled(False)
@@ -210,12 +204,10 @@ class ControlsWidget(QWidget):
     def start_recording(self):
         """Called when recording actually starts (from backend)"""
         self.is_recording = True
-        self.is_paused = False
         self.recording_time = 0
         
-        # NOW enable stop and pause
+        # NOW enable stop button
         self.stop_btn.setEnabled(True)
-        self.pause_btn.setEnabled(True)
         self.clear_btn.setEnabled(True)  # Can clear while recording
         
         self.update_status("🔴 Recording")
@@ -226,12 +218,10 @@ class ControlsWidget(QWidget):
     def on_stop(self):
         """Handle stop button click"""
         self.is_recording = False
-        self.is_paused = False
         
         self.start_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
-        self.pause_btn.setEnabled(False)
-        self.pause_btn.setText("Pause")
+        self.clear_btn.setEnabled(True)
         self.model_combo.setEnabled(True)
         self.device_combo.setEnabled(True)
         self.mic_combo.setEnabled(True)
@@ -243,25 +233,14 @@ class ControlsWidget(QWidget):
         self.timer_label.setText("00:00")
         
         self.stop_clicked.emit()
-        
-    def on_pause(self):
-        """Handle pause button click"""
-        self.is_paused = not self.is_paused
-        
-        if self.is_paused:
-            self.pause_btn.setText("Resume")
-            self.update_status("⏸️ Paused")
-            self.timer.stop()
-        else:
-            self.pause_btn.setText("Pause")
-            self.update_status("🔴 Recording")
-            self.timer.start(1000)
-        
-        self.pause_clicked.emit()
-        
+    
     def on_clear(self):
         """Handle clear button click"""
         self.clear_clicked.emit()
+    
+    def on_copy(self):
+        """Handle copy button click"""
+        self.copy_clicked.emit()
         
     def on_model_changed(self, model: str):
         """Handle model selection change"""
@@ -324,7 +303,7 @@ class ControlsWidget(QWidget):
         
     def update_timer(self):
         """Update recording timer"""
-        if self.is_recording and not self.is_paused:
+        if self.is_recording:
             self.recording_time += 1
             
             minutes = self.recording_time // 60
@@ -339,12 +318,10 @@ class ControlsWidget(QWidget):
     def on_start_failed(self):
         """Handle failed start - reset UI to initial state"""
         self.is_recording = False
-        self.is_paused = False
         
         # Re-enable start button
         self.start_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
-        self.pause_btn.setEnabled(False)
         self.clear_btn.setEnabled(True)
         self.model_combo.setEnabled(True)
         self.device_combo.setEnabled(True)
@@ -356,11 +333,10 @@ class ControlsWidget(QWidget):
         self.recording_time = 0
         self.timer_label.setText("00:00")
         
-    def set_buttons_enabled(self, start: bool = True, stop: bool = False, pause: bool = False):
+    def set_buttons_enabled(self, start: bool = True, stop: bool = False):
         """Enable/disable buttons programmatically"""
         self.start_btn.setEnabled(start)
         self.stop_btn.setEnabled(stop)
-        self.pause_btn.setEnabled(pause)
         
     def get_selected_model(self) -> str:
         """Get currently selected model"""
