@@ -6,7 +6,7 @@ Handles domain-specific term recognition and replacement
 import logging
 import re
 from typing import List, Dict, Optional
-from difflib import SequenceMatcher
+from src.matchers import MatcherFactory, PhoneticMatcher
 
 
 class VocabularyManager:
@@ -19,7 +19,34 @@ class VocabularyManager:
         vocab_config = config.get('vocabulary', {})
         self.enabled = vocab_config.get('enabled', False)
         self.case_sensitive = vocab_config.get('case_sensitive', False)
-        self.fuzzy_threshold = vocab_config.get('fuzzy_threshold', 0.85)
+        
+        # Matching configuration
+        matching_config = vocab_config.get('matching', {})
+        matcher_library = matching_config.get('library', 'fuzzy')
+        fuzzy_threshold = matching_config.get('fuzzy_threshold', 0.85)
+        abydos_algorithm = matching_config.get('abydos_algorithm', 'DoubleMetaphone')
+        
+        # Create phonetic matcher
+        if matcher_library == 'fuzzy':
+            self.matcher = MatcherFactory.create_with_fallback(
+                'fuzzy',
+                threshold=fuzzy_threshold
+            )
+        elif matcher_library == 'abydos':
+            self.matcher = MatcherFactory.create_with_fallback(
+                'abydos',
+                algorithm=abydos_algorithm,
+                threshold=fuzzy_threshold  # Fallback threshold
+            )
+        else:
+            # jellyfish or any other
+            self.matcher = MatcherFactory.create_with_fallback(
+                matcher_library,
+                threshold=fuzzy_threshold  # Fallback threshold
+            )
+        
+        # Legacy fuzzy threshold (for backward compatibility)
+        self.fuzzy_threshold = fuzzy_threshold
         
         # Term storage
         self.terms = {}  # {correct_term: [variations]}
@@ -160,10 +187,7 @@ class VocabularyManager:
         return result
     
     def _apply_fuzzy_replacements(self, text: str, tracking: List) -> str:
-        """Apply fuzzy matching for similar terms"""
-        if self.fuzzy_threshold >= 1.0:
-            return text  # Fuzzy matching disabled
-        
+        """Apply phonetic/fuzzy matching for similar terms"""
         words = text.split()
         result_words = []
         
@@ -180,46 +204,27 @@ class VocabularyManager:
                 result_words.append(word)
                 continue
             
-            # Try fuzzy matching against known terms
+            # Try matching against known terms using configured matcher
             best_match = None
-            best_score = 0.0
             
             for correct_term in self.terms.keys():
-                # Compare
-                score = self._similarity(clean_word, correct_term)
-                
-                if score >= self.fuzzy_threshold and score > best_score:
-                    best_score = score
+                # Use phonetic matcher
+                if self.matcher.match(clean_word, correct_term):
                     best_match = correct_term
+                    break  # Found a match
             
             if best_match:
-                # FIX: Use regex to capture punctuation at the edges
-                # ^\W* matches non-word characters at the start
-                # \W*$ matches non-word characters at the end
-                prefix_match = re.search(r'^\W*', word)
-                suffix_match = re.search(r'\W*$', word)
-                
-                prefix = prefix_match.group() if prefix_match else ""
-                suffix = suffix_match.group() if suffix_match else ""
-                
+                # Preserve punctuation but use exact vocabulary term case
+                prefix = word[:len(word) - len(word.lstrip())]
+                suffix = word[len(word.rstrip()):]
                 replacement = prefix + best_match + suffix
-                
                 result_words.append(replacement)
-                
                 if clean_word.lower() != best_match.lower():
-                    tracking.append(f"{clean_word} → {best_match} (fuzzy: {best_score:.2f})")
+                    tracking.append(f"{clean_word} → {best_match} (phonetic)")
             else:
                 result_words.append(word)
         
         return ' '.join(result_words)
-    
-    def _similarity(self, a: str, b: str) -> float:
-        """Calculate similarity between two strings"""
-        if not self.case_sensitive:
-            a = a.lower()
-            b = b.lower()
-        
-        return SequenceMatcher(None, a, b).ratio()
     
     def get_stats(self) -> dict:
         """Get vocabulary statistics"""
@@ -228,5 +233,6 @@ class VocabularyManager:
             'num_terms': len(self.terms),
             'num_variations': len(self.replacements),
             'case_sensitive': self.case_sensitive,
-            'fuzzy_threshold': self.fuzzy_threshold
+            'fuzzy_threshold': self.fuzzy_threshold,
+            'matcher': self.matcher.__class__.__name__
         }

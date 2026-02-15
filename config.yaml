@@ -55,10 +55,16 @@ output:
 
 # Custom Vocabulary (Phase 3)
 vocabulary:
-  enabled: false            # Enable custom vocabulary
+  enabled: true             # Enable custom vocabulary
   file: "./vocabulary.txt"  # Path to vocabulary file
   case_sensitive: false     # Case-sensitive matching
-  fuzzy_threshold: 0.85     # Fuzzy matching threshold (0.0-1.0, 1.0=exact only)
+  
+  # Phonetic Matching Configuration
+  matching:
+    library: "fuzzy"        # Options: "fuzzy", "jellyfish", "abydos"
+    fuzzy_threshold: 0.85   # Threshold for fuzzy matching (0.0-1.0)
+    abydos_algorithm: "DoubleMetaphone"  # Algorithm for abydos (if used)
+  
   terms:                    # Inline terms (optional)
     - correct: "Kubernetes"
       variations: ["kubernetes", "coober netes", "kube ernetes"]
