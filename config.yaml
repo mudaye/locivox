@@ -61,7 +61,7 @@ output:
 
 # Custom Vocabulary (Phase 3)
 vocabulary:
-  enabled: false            # Enable custom vocabulary
+  enabled: true             # Enable custom vocabulary
   file: "./vocabulary.txt"  # Path to vocabulary file
   case_sensitive: false     # Case-sensitive matching
   

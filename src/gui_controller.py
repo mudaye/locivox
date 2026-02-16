@@ -11,6 +11,7 @@ from typing import Optional
 
 from src.streaming import StreamingTranscriber
 from src.utils import load_config
+from src.gui.vocabulary_worker import VocabularyWorker
 
 
 class TranscriptionWorker(QThread):
@@ -29,8 +30,7 @@ class TranscriptionWorker(QThread):
         self.transcriber: Optional[StreamingTranscriber] = None
         self.is_running = False
         self._audio_queue = []
-        self._last_final_text = ""  # Track last finalized transcription
-        self._last_interim_text = ""  # Track last interim transcription
+        self._last_displayed_text = ""  # Track what we actually displayed
         
     def run(self):
         """Main worker thread execution"""
@@ -91,7 +91,7 @@ class TranscriptionWorker(QThread):
     
     def _deduplicate_text(self, text: str, is_final: bool) -> str:
         """
-        Remove duplicate text from transcription
+        Remove duplicate text from transcription using word-level comparison
         
         Args:
             text: New transcription text
@@ -100,23 +100,35 @@ class TranscriptionWorker(QThread):
         Returns:
             Deduplicated text (only new portion)
         """
-        # Compare with last transcription
-        last_text = self._last_final_text if is_final else self._last_interim_text
+        if not self._last_displayed_text:
+            # No previous text - return as is
+            self._last_displayed_text = text
+            return text
         
-        # If new text starts with last text, extract only the new part
-        if text.startswith(last_text):
-            new_text = text[len(last_text):].strip()
-            self.logger.debug(f"Deduplicated: '{last_text}...' → '{new_text}'")
-        else:
-            # Completely new text (or different enough)
-            new_text = text
+        # Word-level comparison
+        last_words = self._last_displayed_text.split()
+        new_words = text.split()
         
-        # Update tracking
-        if is_final:
-            self._last_final_text = text
-            self._last_interim_text = ""  # Reset interim
+        # Find where the overlap ends
+        overlap_end = 0
+        for i in range(min(len(last_words), len(new_words))):
+            if last_words[i].lower() == new_words[i].lower():  # Case-insensitive comparison
+                overlap_end = i + 1
+            else:
+                break
+        
+        # Extract only the new words
+        if overlap_end < len(new_words):
+            new_words_only = new_words[overlap_end:]
+            new_text = " ".join(new_words_only)
+            self.logger.debug(f"Deduplicated: {overlap_end}/{len(new_words)} words overlap, {len(new_words_only)} new")
         else:
-            self._last_interim_text = text
+            # Complete overlap - no new text
+            new_text = ""
+            self.logger.debug("Complete overlap - skipping")
+        
+        # Update tracking - store the FULL new text (not just what we returned)
+        self._last_displayed_text = text
         
         return new_text
             
@@ -246,6 +258,7 @@ class GUIController(QObject):
     error_occurred = pyqtSignal(str)
     recording_actually_started = pyqtSignal()  # When backend is truly ready
     start_failed = pyqtSignal()  # When start fails
+    vocabulary_correction = pyqtSignal(str, str)  # original, corrected
     
     def __init__(self, config_path: str = "config.yaml"):
         super().__init__()
@@ -257,6 +270,7 @@ class GUIController(QObject):
         # Workers
         self.transcription_worker: Optional[TranscriptionWorker] = None
         self.audio_worker: Optional[AudioCaptureWorker] = None
+        self.vocabulary_worker: Optional[VocabularyWorker] = None
         
         # State
         self.is_recording = False
@@ -273,6 +287,14 @@ class GUIController(QObject):
         try:
             self.logger.info("=== Starting recording ===")
             self.status_changed.emit("Initializing...")
+            
+            # Start vocabulary worker (handles both vocab and punctuation)
+            self.logger.info("Starting vocabulary/punctuation worker")
+            self.vocabulary_worker = VocabularyWorker(self.config)
+            self.vocabulary_worker.correction_ready.connect(
+                self.on_vocabulary_correction
+            )
+            self.vocabulary_worker.start()
             
             # Create and start transcription worker
             self.logger.info("Creating transcription worker")
@@ -381,6 +403,13 @@ class GUIController(QObject):
                 if self.audio_worker.isRunning():
                     self.audio_worker.terminate()
                 self.audio_worker = None
+            
+            if self.vocabulary_worker:
+                self.vocabulary_worker.stop()
+                self.vocabulary_worker.wait(2000)
+                if self.vocabulary_worker.isRunning():
+                    self.vocabulary_worker.terminate()
+                self.vocabulary_worker = None
                 
             self.is_recording = False
             self.status_changed.emit("Recording stopped")
@@ -420,7 +449,18 @@ class GUIController(QObject):
     @pyqtSlot(str, bool)
     def on_transcription_ready(self, text: str, is_final: bool):
         """Handle transcription result from worker"""
+        # Emit raw transcription immediately (fast feedback)
         self.transcription_ready.emit(text, is_final)
+        
+        # If vocabulary enabled and this is final text, process for corrections
+        if is_final and self.vocabulary_worker:
+            self.vocabulary_worker.process_text(text)
+    
+    @pyqtSlot(str, str)
+    def on_vocabulary_correction(self, original: str, corrected: str):
+        """Handle vocabulary correction from worker"""
+        self.logger.info(f"Vocabulary correction: '{original}' → '{corrected}'")
+        self.vocabulary_correction.emit(original, corrected)
             
     @pyqtSlot(str)
     def on_error(self, error: str):

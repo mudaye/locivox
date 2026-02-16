@@ -1,18 +1,17 @@
 # Locivox TODO & Future Features 📋
 
-## Immediate (Day 3) - IN PROGRESS 🔧
+## Immediate (Day 3) - COMPLETE ✅
 
 ### Critical Fixes
-- [ ] Remove Pause button (or fix properly)
-- [ ] Remove `terms` from config.yaml (move to vocabulary.txt only)
-- [ ] Fix duplicate transcription issue
-- [ ] Add Export functionality (txt, json, srt)
+- [x] Remove Pause button (or fix properly)
+- [x] Remove `terms` from config.yaml (move to vocabulary.txt only)
+- [x] Fix duplicate transcription issue
+- [x] Add Export functionality (txt, json, srt)
 
 ### High Priority Features
-- [ ] Vocabulary correction thread (background processing)
-- [ ] Blinking cursor + confidence coloring
-- [ ] Basic punctuation improvement (rules-based)
-- [ ] Right-click word correction → add to vocabulary
+- [x] Vocabulary correction thread (background processing)
+- [x] Blinking cursor + confidence coloring
+- [x] Basic punctuation improvement (rules-based)
 
 ---
 

@@ -120,6 +120,7 @@ def main():
         # Connect controller to window
         window.start_requested.connect(controller.start_recording)
         window.stop_requested.connect(controller.stop_recording)
+        window.stop_requested.connect(window.transcription.stop_cursor_blink)  # Stop cursor
         window.mic_changed.connect(controller.set_microphone_device)
         
         # Connect controller signals to window
@@ -128,10 +129,16 @@ def main():
         controller.error_occurred.connect(
             lambda msg: QMessageBox.critical(window, "Error", msg)
         )
+        controller.vocabulary_correction.connect(
+            lambda orig, corr: window.transcription.replace_text(orig, corr)
+        )
         
         # Connect recording_actually_started to controls widget
         controller.recording_actually_started.connect(window.controls.start_recording)
         controller.start_failed.connect(window.controls.on_start_failed)
+        
+        # Start cursor blinking when recording starts
+        controller.recording_actually_started.connect(window.transcription.start_cursor_blink)
         
         # Connect model/device changes from controls
         window.controls.model_changed.connect(
