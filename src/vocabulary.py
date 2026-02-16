@@ -104,37 +104,76 @@ class VocabularyManager:
         """
         Load vocabulary from file
         
-        File format:
-        correct_term
-        correct_term: variation1, variation2, variation3
-        # Comments
+        File format (NEW - from vocabulary dialog):
+        correct: Kubernetes
+        - kubernetes
+        - coober netes
+        
+        File format (OLD - legacy):
+        Kubernetes: kubernetes, coober netes
         """
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
+                current_correct = None
+                current_variations = []
+                
                 for line in f:
-                    line = line.strip()
+                    line_stripped = line.strip()
                     
                     # Skip empty lines and comments
-                    if not line or line.startswith('#'):
+                    if not line_stripped or line_stripped.startswith('#'):
                         continue
                     
-                    # Parse line
-                    if ':' in line:
-                        # Term with variations
-                        correct, variations_str = line.split(':', 1)
-                        correct = correct.strip()
-                        variations = [v.strip() for v in variations_str.split(',')]
-                        self.add_term(correct, variations)
+                    # NEW FORMAT: Check for "correct: Term"
+                    if line_stripped.startswith('correct:'):
+                        # Save previous term if exists
+                        if current_correct:
+                            self.add_term(current_correct, current_variations)
+                        
+                        # Start new term
+                        current_correct = line_stripped.split(':', 1)[1].strip()
+                        current_variations = []
+                    
+                    # NEW FORMAT: Check for variation "- term"
+                    elif line_stripped.startswith('-'):
+                        variation = line_stripped[1:].strip()
+                        if variation and current_correct:
+                            current_variations.append(variation)
+                    
+                    # OLD FORMAT: "Term: variation1, variation2"
+                    elif ':' in line_stripped:
+                        # Save previous term if exists
+                        if current_correct:
+                            self.add_term(current_correct, current_variations)
+                        
+                        correct, variations_str = line_stripped.split(':', 1)
+                        current_correct = correct.strip()
+                        current_variations = [v.strip() for v in variations_str.split(',') if v.strip()]
+                        # Add immediately (old format is single-line)
+                        self.add_term(current_correct, current_variations)
+                        current_correct = None
+                        current_variations = []
+                    
+                    # Plain term
                     else:
-                        # Just a term
-                        self.add_term(line)
+                        # Save previous term if exists
+                        if current_correct:
+                            self.add_term(current_correct, current_variations)
+                        
+                        self.add_term(line_stripped)
+                        current_correct = None
+                        current_variations = []
+                
+                # Save last term
+                if current_correct:
+                    self.add_term(current_correct, current_variations)
             
-            self.logger.info(f"Loaded vocabulary from {filepath}")
+            self.logger.info(f"Loaded vocabulary from {filepath}: {len(self.terms)} terms")
         
         except FileNotFoundError:
             self.logger.warning(f"Vocabulary file not found: {filepath}")
         except Exception as e:
-            self.logger.error(f"Error loading vocabulary file: {e}")
+            self.logger.error(f"Error loading vocabulary file: {e}", exc_info=True)
     
     def apply_vocabulary(self, text: str) -> str:
         """

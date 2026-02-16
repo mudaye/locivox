@@ -35,7 +35,7 @@ class VocabularyWorker(QThread):
             if self.config.get('vocabulary', {}).get('enabled', False):
                 self.logger.info("Initializing VocabularyManager")
                 self.vocab_manager = VocabularyManager(self.config)
-                self.logger.info(f"Loaded {len(self.vocab_manager.vocabulary)} vocabulary terms")
+                self.logger.info(f"Loaded {len(self.vocab_manager.terms)} vocabulary terms")
             else:
                 self.logger.info("Vocabulary corrections disabled in config")
             
@@ -61,17 +61,42 @@ class VocabularyWorker(QThread):
         
         try:
             original_text = text
+            self.logger.debug(f"Processing text: '{text}'")
             
             # Apply vocabulary corrections if enabled
             if self.vocab_manager:
                 text = self.vocab_manager.apply_vocabulary(text)
+                if text != original_text:
+                    self.logger.info(f"Vocabulary changed text: '{original_text}' → '{text}'")
             
-            # Apply punctuation improvements
+            # Apply punctuation improvements (track what changed)
+            text_before_punctuation = text
             text = improve_punctuation(text)
+            
+            self.logger.debug(f"Punctuation: before='{text_before_punctuation}', after='{text}'")
+            
+            # Log punctuation changes to analytics
+            if text != text_before_punctuation:
+                from src.analytics import get_analytics
+                analytics = get_analytics()
+                if analytics:
+                    # Determine which rules might have applied (simplified)
+                    rules_applied = []
+                    if text[0].isupper() and not text_before_punctuation[0].isupper():
+                        rules_applied.append("capitalize_first")
+                    if text.count('.') > text_before_punctuation.count('.'):
+                        rules_applied.append("add_periods")
+                    if text != text_before_punctuation:
+                        rules_applied.append("punctuation_cleanup")
+                    
+                    self.logger.info(f"Punctuation changed: rules={rules_applied}")
+                    analytics.log_punctuation(text_before_punctuation, text, rules_applied)
+            else:
+                self.logger.debug("No punctuation changes")
             
             # Only emit if text changed
             if text != original_text:
-                self.logger.info(f"Corrected: '{original_text}' → '{text}'")
+                self.logger.info(f"Emitting correction: '{original_text}' → '{text}'")
                 self.correction_ready.emit(original_text, text)
             else:
                 self.logger.debug(f"No corrections needed for: '{text}'")

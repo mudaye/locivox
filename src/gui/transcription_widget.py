@@ -24,6 +24,10 @@ class TranscriptionWidget(QWidget):
         
         self.init_ui()
         
+        # Enable context menu
+        self.text_edit.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.text_edit.customContextMenuRequested.connect(self.show_context_menu)
+        
     def init_ui(self):
         """Initialize the user interface"""
         layout = QVBoxLayout()
@@ -254,3 +258,181 @@ class TranscriptionWidget(QWidget):
         cursor.movePosition(cursor.MoveOperation.End)
         self.text_edit.setTextCursor(cursor)
         self.text_edit.ensureCursorVisible()
+    
+    def show_context_menu(self, position):
+        """Show context menu for word correction"""
+        from PyQt6.QtWidgets import QMenu
+        from PyQt6.QtGui import QAction
+        
+        # Get cursor at position
+        cursor = self.text_edit.cursorForPosition(position)
+        
+        # Select word under cursor
+        cursor.select(cursor.SelectionType.WordUnderCursor)
+        selected_text = cursor.selectedText().strip()
+        
+        if not selected_text:
+            return
+        
+        # Create context menu
+        menu = QMenu(self.text_edit)
+        
+        # Add "Correct..." action
+        correct_action = QAction(f"Correct '{selected_text}'...", self.text_edit)
+        correct_action.triggered.connect(lambda: self.correct_word(selected_text))
+        menu.addAction(correct_action)
+        
+        menu.addSeparator()
+        
+        # Add standard actions
+        copy_action = QAction("Copy", self.text_edit)
+        copy_action.triggered.connect(self.text_edit.copy)
+        copy_action.setEnabled(self.text_edit.textCursor().hasSelection())
+        menu.addAction(copy_action)
+        
+        select_all_action = QAction("Select All", self.text_edit)
+        select_all_action.triggered.connect(self.text_edit.selectAll)
+        menu.addAction(select_all_action)
+        
+        # Show menu
+        menu.exec(self.text_edit.mapToGlobal(position))
+    
+    def correct_word(self, word: str):
+        """Open correction dialog for a word"""
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox
+        
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Correct Word")
+        dialog.setMinimumWidth(400)
+        
+        layout = QVBoxLayout()
+        
+        # Info
+        info = QLabel(f"Correct '{word}' to:")
+        layout.addWidget(info)
+        
+        # Input
+        input_field = QLineEdit()
+        input_field.setPlaceholderText("Enter correct form")
+        input_field.setText(word)
+        input_field.selectAll()
+        layout.addWidget(input_field)
+        
+        # Checkbox to add to vocabulary
+        from PyQt6.QtWidgets import QCheckBox
+        add_to_vocab = QCheckBox("Add to vocabulary for future corrections")
+        add_to_vocab.setChecked(True)
+        layout.addWidget(add_to_vocab)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(dialog.reject)
+        button_layout.addWidget(cancel_btn)
+        
+        ok_btn = QPushButton("Correct")
+        ok_btn.setDefault(True)
+        ok_btn.clicked.connect(dialog.accept)
+        button_layout.addWidget(ok_btn)
+        
+        layout.addLayout(button_layout)
+        dialog.setLayout(layout)
+        
+        # Show dialog
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            corrected = input_field.text().strip()
+            
+            if corrected and corrected != word:
+                # Replace in display
+                self.replace_text(word, corrected)
+                
+                # Add to vocabulary if checked
+                if add_to_vocab.isChecked():
+                    self.add_to_vocabulary(word, corrected)
+                
+                self.logger.info(f"Corrected '{word}' → '{corrected}' (vocab: {add_to_vocab.isChecked()})")
+    
+    def add_to_vocabulary(self, variation: str, correct: str):
+        """Add a word to vocabulary file"""
+        try:
+            # Get vocabulary file from parent window config
+            parent_window = self.window()
+            vocab_file = parent_window.config.get('vocabulary', {}).get('file', './vocabulary.txt')
+            
+            import os
+            
+            # Read existing vocabulary
+            terms = []
+            if os.path.exists(vocab_file):
+                with open(vocab_file, 'r', encoding='utf-8') as f:
+                    current_term = None
+                    
+                    for line in f:
+                        line = line.strip()
+                        
+                        if not line or line.startswith('#'):
+                            continue
+                        
+                        if line.startswith('correct:'):
+                            if current_term:
+                                terms.append(current_term)
+                            
+                            correct_form = line.split(':', 1)[1].strip()
+                            current_term = {'correct': correct_form, 'variations': []}
+                            
+                        elif line.startswith('-') and current_term:
+                            var = line[1:].strip()
+                            if var:
+                                current_term['variations'].append(var)
+                    
+                    if current_term:
+                        terms.append(current_term)
+            
+            # Check if correct form already exists
+            existing_term = None
+            for term in terms:
+                if term['correct'].lower() == correct.lower():
+                    existing_term = term
+                    break
+            
+            if existing_term:
+                # Add variation if not already present
+                if variation.lower() not in [v.lower() for v in existing_term['variations']]:
+                    existing_term['variations'].append(variation)
+                    self.logger.info(f"Added variation '{variation}' to existing term '{correct}'")
+            else:
+                # Create new term
+                terms.append({'correct': correct, 'variations': [variation]})
+                self.logger.info(f"Created new vocabulary term '{correct}' with variation '{variation}'")
+            
+            # Save vocabulary
+            os.makedirs(os.path.dirname(vocab_file) or '.', exist_ok=True)
+            
+            with open(vocab_file, 'w', encoding='utf-8') as f:
+                f.write("# Locivox Custom Vocabulary\n\n")
+                
+                for term in terms:
+                    f.write(f"correct: {term['correct']}\n")
+                    for var in term['variations']:
+                        f.write(f"- {var}\n")
+                    f.write("\n")
+            
+            # Show confirmation
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.information(
+                self,
+                "Added to Vocabulary",
+                f"Added '{variation}' → '{correct}' to vocabulary.\n\n"
+                "This correction will be applied automatically in future recordings."
+            )
+            
+        except Exception as e:
+            self.logger.error(f"Error adding to vocabulary: {e}", exc_info=True)
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.warning(
+                self,
+                "Error",
+                f"Failed to add to vocabulary:\n{e}"
+            )

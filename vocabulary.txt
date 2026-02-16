@@ -1,11 +1,13 @@
 # Locivox Custom Vocabulary
-# Format:
-# correct: Correct Form
-# - variation 1
-# - variation 2
 
 correct: Kubernetes
 - kubernetes
 - coober netes
 - kube netes
+
+correct: helmsman
+- Hellsmen
+
+correct: pilot
+- Pilate
 

@@ -25,11 +25,12 @@ class MainWindow(QMainWindow):
     export_requested = pyqtSignal()
     mic_changed = pyqtSignal(int)  # microphone device index
     
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, controller=None):
         super().__init__()
         self.logger = logging.getLogger('locivox.gui')
         self.logger.info("Initializing main window")
         self.config = config  # Store config reference
+        self.controller = controller  # Store controller reference
         
         self.init_ui()
         self.create_menu_bar()
@@ -289,44 +290,162 @@ class MainWindow(QMainWindow):
             f.write(text)
     
     def _export_json(self, filename: str, text: str):
-        """Export as JSON with metadata"""
+        """Export as JSON with word-level timestamps and metadata"""
         from datetime import datetime
         import json
         
+        # Get word-level timestamps if available
+        words_with_timestamps = []
+        if self.controller:
+            words_with_timestamps = self.controller.get_words_with_timestamps()
+        
+        # Build structured JSON
         data = {
-            "transcription": text,
-            "timestamp": datetime.now().isoformat(),
-            "word_count": len(text.split()),
-            "character_count": len(text),
-            "model": self.controls.get_selected_model(),
-            "device": self.controls.get_selected_device()
+            'metadata': {
+                'exported_at': datetime.now().isoformat(),
+                'word_count': len(text.split()) if text else 0,
+                'character_count': len(text),
+                'model': self.controls.get_selected_model(),
+                'device': self.controls.get_selected_device(),
+                'has_word_timestamps': len(words_with_timestamps) > 0
+            },
+            'text': text,
+            'words': [],
+            'segments': []
         }
         
+        # Add word-level data if available
+        if words_with_timestamps:
+            data['words'] = [
+                {
+                    'word': w['word'],
+                    'start': round(w['absolute_start'], 3),
+                    'end': round(w['absolute_end'], 3),
+                    'duration': round(w['absolute_end'] - w['absolute_start'], 3)
+                }
+                for w in words_with_timestamps
+            ]
+            
+            # Create segments (similar to SRT chunks: max 10 words or 5 seconds)
+            current_segment = []
+            current_start = None
+            
+            for word_data in words_with_timestamps:
+                if not current_segment:
+                    current_start = word_data['absolute_start']
+                
+                current_segment.append(word_data['word'])
+                
+                # Create segment if we have 10 words or 5 seconds elapsed
+                segment_duration = word_data['absolute_end'] - current_start
+                if len(current_segment) >= 10 or segment_duration >= 5.0:
+                    data['segments'].append({
+                        'text': ' '.join(current_segment),
+                        'start': round(current_start, 3),
+                        'end': round(word_data['absolute_end'], 3),
+                        'duration': round(word_data['absolute_end'] - current_start, 3),
+                        'word_count': len(current_segment)
+                    })
+                    current_segment = []
+                    current_start = None
+            
+            # Add remaining words
+            if current_segment and words_with_timestamps:
+                data['segments'].append({
+                    'text': ' '.join(current_segment),
+                    'start': round(current_start, 3),
+                    'end': round(words_with_timestamps[-1]['absolute_end'], 3),
+                    'duration': round(words_with_timestamps[-1]['absolute_end'] - current_start, 3),
+                    'word_count': len(current_segment)
+                })
+        
+        # Write JSON file
         with open(filename, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
     
     def _export_srt(self, filename: str, text: str):
-        """Export as SRT subtitle format"""
-        # Simple implementation: one subtitle per sentence
-        # TODO: Add actual timestamps when we track them
+        """Export as SRT subtitle format with real word-level timestamps"""
+        # Try to get word-level timestamps
+        words_with_timestamps = []
+        if self.controller:
+            words_with_timestamps = self.controller.get_words_with_timestamps()
+            self.logger.info(f"SRT Export: Got {len(words_with_timestamps)} words with timestamps")
+        else:
+            self.logger.warning("SRT Export: No controller available")
         
-        sentences = text.replace('! ', '!|').replace('? ', '?|').replace('. ', '.|').split('|')
-        sentences = [s.strip() for s in sentences if s.strip()]
-        
-        with open(filename, 'w', encoding='utf-8') as f:
-            for i, sentence in enumerate(sentences, 1):
-                # Fake timestamps for now (5 seconds per sentence)
-                start_time = self._format_srt_time(i * 5)
-                end_time = self._format_srt_time((i + 1) * 5)
+        if words_with_timestamps:
+            # Use real word-level timestamps
+            self.logger.info(f"Exporting SRT with {len(words_with_timestamps)} word timestamps")
+            
+            # Debug: Show first few words
+            if len(words_with_timestamps) > 0:
+                self.logger.debug(f"First word: {words_with_timestamps[0]}")
+            
+            # Group words into subtitle chunks (max 10 words or 5 seconds per subtitle)
+            subtitle_chunks = []
+            current_chunk = []
+            current_start = None
+            
+            for word_data in words_with_timestamps:
+                if not current_chunk:
+                    current_start = word_data['absolute_start']
                 
-                f.write(f"{i}\n")
-                f.write(f"{start_time} --> {end_time}\n")
-                f.write(f"{sentence}\n")
-                f.write("\n")
+                current_chunk.append(word_data['word'])
+                
+                # Create subtitle if we have 10 words or 5 seconds elapsed
+                chunk_duration = word_data['absolute_end'] - current_start
+                if len(current_chunk) >= 10 or chunk_duration >= 5.0:
+                    subtitle_chunks.append({
+                        'text': ' '.join(current_chunk),
+                        'start': current_start,
+                        'end': word_data['absolute_end']
+                    })
+                    current_chunk = []
+                    current_start = None
+            
+            # Add remaining words
+            if current_chunk and words_with_timestamps:
+                subtitle_chunks.append({
+                    'text': ' '.join(current_chunk),
+                    'start': current_start,
+                    'end': words_with_timestamps[-1]['absolute_end']
+                })
+            
+            self.logger.info(f"Created {len(subtitle_chunks)} subtitle chunks")
+            
+            # Write SRT file
+            with open(filename, 'w', encoding='utf-8') as f:
+                for i, chunk in enumerate(subtitle_chunks, 1):
+                    start_time = self._format_srt_time(chunk['start'])
+                    end_time = self._format_srt_time(chunk['end'])
+                    
+                    f.write(f"{i}\n")
+                    f.write(f"{start_time} --> {end_time}\n")
+                    f.write(f"{chunk['text']}\n")
+                    f.write("\n")
+            
+        else:
+            # Fallback: Use sentence-based timing (old behavior)
+            self.logger.warning("No word timestamps available - using sentence-based timing")
+            
+            sentences = text.replace('! ', '!|').replace('? ', '?|').replace('. ', '.|').split('|')
+            sentences = [s.strip() for s in sentences if s.strip()]
+            
+            with open(filename, 'w', encoding='utf-8') as f:
+                for i, sentence in enumerate(sentences, 1):
+                    # Estimate timestamps (5 seconds per sentence)
+                    start_time = self._format_srt_time(i * 5)
+                    end_time = self._format_srt_time((i + 1) * 5)
+                    
+                    f.write(f"{i}\n")
+                    f.write(f"{start_time} --> {end_time}\n")
+                    f.write(f"{sentence}\n")
+                    f.write("\n")
     
-    def _format_srt_time(self, seconds: int) -> str:
+    def _format_srt_time(self, seconds: float) -> str:
         """Format seconds as SRT timestamp (HH:MM:SS,mmm)"""
-        hours = seconds // 3600
-        minutes = (seconds % 3600) // 60
-        secs = seconds % 60
-        return f"{hours:02d}:{minutes:02d}:{secs:02d},000"
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        secs = int(seconds % 60)
+        milliseconds = int((seconds % 1) * 1000)
+        return f"{hours:02d}:{minutes:02d}:{secs:02d},{milliseconds:03d}"

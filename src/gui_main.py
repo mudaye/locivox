@@ -114,8 +114,8 @@ def main():
         # Create controller
         controller = GUIController()
         
-        # Create main window (pass config)
-        window = MainWindow(config)
+        # Create main window (pass config and controller)
+        window = MainWindow(config, controller)
         
         # Connect controller to window
         window.start_requested.connect(controller.start_recording)

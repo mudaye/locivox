@@ -12,6 +12,7 @@ from typing import Optional
 from src.streaming import StreamingTranscriber
 from src.utils import load_config
 from src.gui.vocabulary_worker import VocabularyWorker
+from src.analytics import get_analytics, reset_analytics
 
 
 class TranscriptionWorker(QThread):
@@ -109,26 +110,44 @@ class TranscriptionWorker(QThread):
         last_words = self._last_displayed_text.split()
         new_words = text.split()
         
-        # Find where the overlap ends
+        # Helper to normalize word for comparison (strip punctuation, lowercase)
+        def normalize_word(word):
+            return word.lower().rstrip('.,!?;:\'"')
+        
+        # Find overlap: where END of last_words matches BEGINNING of new_words
         overlap_end = 0
-        for i in range(min(len(last_words), len(new_words))):
-            if last_words[i].lower() == new_words[i].lower():  # Case-insensitive comparison
-                overlap_end = i + 1
-            else:
+        max_overlap = min(len(last_words), len(new_words))
+        
+        # Try different overlap lengths, starting from the longest possible
+        for overlap_len in range(max_overlap, 0, -1):
+            # Check if last N words of last_text match first N words of new_text
+            last_ending = last_words[-overlap_len:]
+            new_beginning = new_words[:overlap_len]
+            
+            # Normalize and compare (ignore punctuation differences)
+            if [normalize_word(w) for w in last_ending] == [normalize_word(w) for w in new_beginning]:
+                overlap_end = overlap_len
                 break
         
-        # Extract only the new words
+        # Extract only the new words (skip the overlapping beginning)
         if overlap_end < len(new_words):
             new_words_only = new_words[overlap_end:]
             new_text = " ".join(new_words_only)
             self.logger.debug(f"Deduplicated: {overlap_end}/{len(new_words)} words overlap, {len(new_words_only)} new")
+            
+            # Log to analytics
+            from src.analytics import get_analytics
+            analytics = get_analytics()
+            if analytics:
+                analytics.log_deduplication(text, new_text, overlap_end)
         else:
             # Complete overlap - no new text
             new_text = ""
             self.logger.debug("Complete overlap - skipping")
         
-        # Update tracking - store the FULL new text (not just what we returned)
-        self._last_displayed_text = text
+        # Update tracking - append only the new text
+        if new_text:
+            self._last_displayed_text = self._last_displayed_text + " " + new_text
         
         return new_text
             
@@ -140,6 +159,12 @@ class TranscriptionWorker(QThread):
             except Exception as e:
                 self.logger.error(f"Error adding audio to transcriber: {e}", exc_info=True)
                 # Don't crash - just log and continue
+    
+    def get_words_with_timestamps(self) -> list:
+        """Get all words with timestamps for SRT export"""
+        if self.transcriber:
+            return self.transcriber.get_words_with_timestamps()
+        return []
                 
     def stop(self):
         """Stop transcription"""
@@ -276,6 +301,9 @@ class GUIController(QObject):
         self.is_recording = False
         self.selected_mic_device = None  # Selected microphone device index
         
+        # Cache for word timestamps (persists after recording stops)
+        self.cached_words_with_timestamps = []
+        
         self.logger.info("GUI Controller initialized")
         
     def start_recording(self):
@@ -287,6 +315,14 @@ class GUIController(QObject):
         try:
             self.logger.info("=== Starting recording ===")
             self.status_changed.emit("Initializing...")
+            
+            # Clear cached words from previous recording
+            self.cached_words_with_timestamps = []
+            
+            # Initialize analytics
+            analytics = get_analytics(self.config)
+            if analytics:
+                self.logger.info(f"Analytics session: {analytics.session_id}")
             
             # Start vocabulary worker (handles both vocab and punctuation)
             self.logger.info("Starting vocabulary/punctuation worker")
@@ -389,6 +425,13 @@ class GUIController(QObject):
         try:
             self.logger.info("Stopping recording")
             
+            # CRITICAL: Save words before destroying worker!
+            if self.transcription_worker:
+                self.cached_words_with_timestamps = self.transcription_worker.get_words_with_timestamps()
+                self.logger.info(f"Cached {len(self.cached_words_with_timestamps)} words for export")
+            else:
+                self.cached_words_with_timestamps = []
+            
             # Stop workers
             if self.transcription_worker:
                 self.transcription_worker.stop()
@@ -414,6 +457,18 @@ class GUIController(QObject):
             self.is_recording = False
             self.status_changed.emit("Recording stopped")
             
+            # End analytics session
+            analytics = get_analytics()
+            if analytics:
+                analytics.end_session()
+                summary = analytics.get_summary()
+                self.logger.info(
+                    f"Session complete: {summary['total_words']} words, "
+                    f"{summary['vocabulary_corrections']} vocab corrections"
+                )
+                # Reset for next session
+                reset_analytics()
+            
         except Exception as e:
             self.logger.error(f"Error stopping recording: {e}", exc_info=True)
     
@@ -426,6 +481,14 @@ class GUIController(QObject):
         if 'audio' not in self.config:
             self.config['audio'] = {}
         self.config['audio']['device_index'] = device_index
+    
+    def get_words_with_timestamps(self) -> list:
+        """Get all words with timestamps for SRT export"""
+        # First try to get from active worker
+        if self.transcription_worker:
+            return self.transcription_worker.get_words_with_timestamps()
+        # Fall back to cached words (after recording stopped)
+        return self.cached_words_with_timestamps
             
     def update_config(self, key: str, value):
         """Update configuration"""
@@ -449,17 +512,31 @@ class GUIController(QObject):
     @pyqtSlot(str, bool)
     def on_transcription_ready(self, text: str, is_final: bool):
         """Handle transcription result from worker"""
+        # Log to analytics
+        from src.analytics import get_analytics
+        analytics = get_analytics()
+        if analytics:
+            analytics.log_transcription(text, is_final)
+        
         # Emit raw transcription immediately (fast feedback)
         self.transcription_ready.emit(text, is_final)
         
-        # If vocabulary enabled and this is final text, process for corrections
-        if is_final and self.vocabulary_worker:
+        # Process ALL transcriptions through vocabulary/punctuation (not just final)
+        # In streaming mode, "final" might never come, so process everything
+        if text and self.vocabulary_worker:
             self.vocabulary_worker.process_text(text)
     
     @pyqtSlot(str, str)
     def on_vocabulary_correction(self, original: str, corrected: str):
         """Handle vocabulary correction from worker"""
         self.logger.info(f"Vocabulary correction: '{original}' → '{corrected}'")
+        
+        # Log to analytics
+        from src.analytics import get_analytics
+        analytics = get_analytics()
+        if analytics:
+            analytics.log_vocabulary_correction(original, corrected, "vocabulary_match")
+        
         self.vocabulary_correction.emit(original, corrected)
             
     @pyqtSlot(str)
