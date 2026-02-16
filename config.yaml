@@ -1,78 +1,70 @@
-# Locivox Configuration File
-
-# Logging Configuration
-logging:
-  level: "INFO"           # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
-  file: "locivox_gui.log" # Log file path
-
-
-# Model Settings
 model:
-  engine: "faster-whisper"  # Options: "faster-whisper", "openai-whisper"
-  size: "base"              # Options: "tiny", "base", "small", "medium", "large"
-  device: "cpu"             # Options: "cpu", "cuda"
-  compute_type: "int8"      # Options: "int8", "float16", "float32"
-  language: "en"            # ISO language code, or "auto" for detection
-  
-# Audio Settings
+  engine: faster-whisper
+  size: base
+  device: cpu
+  compute_type: int8
+  language: en
 audio:
-  sample_rate: 16000        # Whisper expects 16kHz
-  channels: 1               # Mono
-  chunk_duration: 5         # Seconds per processing chunk
-  silence_threshold: 0.01   # RMS threshold for silence detection
-  
-# Recording Settings
+  sample_rate: 16000
+  channels: 1
+  chunk_duration: 5
+  silence_threshold: 0.01
+vad:
+  enabled: true
+  threshold: 0.5
 recording:
-  format: "wav"             # Audio file format
-  auto_stop: false          # Auto-stop on silence (future feature)
-  max_duration: 3600        # Max recording time in seconds (1 hour)
-
-# Streaming Settings (Phase 2)
+  format: wav
+  auto_stop: false
+  max_duration: 3600
 streaming:
-  enabled: false            # Enable real-time streaming mode
-  chunk_size: 5.0           # Seconds of audio per chunk
-  chunk_overlap: 1.0        # Seconds of overlap between chunks
-  vad_enabled: true         # Enable Voice Activity Detection
-  vad_threshold: 0.5        # VAD confidence threshold (0.0-1.0)
-  buffer_size: 10           # Max chunks in buffer
-  min_speech_duration: 0.5  # Minimum seconds of speech to process
-
-# Batch Processing Settings (Phase 3)
+  enabled: true
+  chunk_size: 5.0
+  chunk_overlap: 1.0
+  vad_enabled: true
+  vad_threshold: 0.5
+  buffer_size: 10
+  min_speech_duration: 0.5
 batch:
-  extensions: [".wav", ".mp3", ".flac", ".m4a", ".ogg", ".opus"]
-  recursive: false          # Process subdirectories
-  overwrite: false          # Overwrite existing transcriptions
-  show_progress: true       # Show progress bar
-  save_report: false        # Auto-save processing report
-  report_file: "./batch_report.json"
-
-# Folder Watching Settings (Phase 3)
+  extensions:
+  - .wav
+  - .mp3
+  - .flac
+  - .m4a
+  - .ogg
+  - .opus
+  recursive: false
+  overwrite: false
+  show_progress: true
+  save_report: false
+  report_file: ./batch_report.json
 watcher:
-  poll_interval: 2.0        # Seconds between directory scans
-  process_existing: false   # Process files that exist at startup
-  extensions: [".wav", ".mp3", ".flac", ".m4a", ".ogg", ".opus"]
-
-# Output Settings
+  poll_interval: 2.0
+  process_existing: false
+  extensions:
+  - .wav
+  - .mp3
+  - .flac
+  - .m4a
+  - .ogg
+  - .opus
 output:
-  directory: "./output"
-  format: "txt"             # Options: "txt", "json", "srt", "vtt"
-  timestamp: true           # Include timestamp in filename
-  include_timestamps: false # Include word-level timestamps in output
-
-# Custom Vocabulary (Phase 3)
+  directory: ./output
+  format: txt
+  timestamp: true
+  include_timestamps: false
 vocabulary:
-  enabled: true             # Enable custom vocabulary
-  file: "./vocabulary.txt"  # Path to vocabulary file
-  case_sensitive: false     # Case-sensitive matching
-  
-  # Phonetic Matching Configuration
+  enabled: true
+  file: ./vocabulary.txt
+  case_sensitive: false
   matching:
-    library: "fuzzy"        # Options: "fuzzy", "jellyfish", "abydos"
-    fuzzy_threshold: 0.85   # Threshold for fuzzy matching (0.0-1.0)
-    abydos_algorithm: "DoubleMetaphone"  # Algorithm for abydos (if used)
-
-# Logging
+    library: jellyfish
+    fuzzy_threshold: 0.85
+    abydos_algorithm: DoubleMetaphone
 logging:
-  level: "INFO"             # Options: "DEBUG", "INFO", "WARNING", "ERROR"
-  file: "./logs/locivox.log"
+  level: INFO
+  file: ./logs/locivox.log
   console: true
+analytics:
+  auto_export: true
+  keep_sessions: 30
+  export_dir: ./analytics

@@ -25,10 +25,11 @@ class MainWindow(QMainWindow):
     export_requested = pyqtSignal()
     mic_changed = pyqtSignal(int)  # microphone device index
     
-    def __init__(self):
+    def __init__(self, config: dict):
         super().__init__()
         self.logger = logging.getLogger('locivox.gui')
         self.logger.info("Initializing main window")
+        self.config = config  # Store config reference
         
         self.init_ui()
         self.create_menu_bar()
@@ -155,12 +156,39 @@ class MainWindow(QMainWindow):
     def on_settings(self):
         """Handle settings menu"""
         self.logger.info("Settings requested")
-        self.settings_requested.emit()
+        
+        # Import here to avoid circular dependency
+        from src.gui.settings_dialog import SettingsDialog
+        
+        # Create and show settings dialog
+        dialog = SettingsDialog(self.config, self)
+        dialog.settings_changed.connect(self.on_settings_changed)
+        dialog.exec()
+    
+    def on_settings_changed(self):
+        """Handle settings changed"""
+        self.logger.info("Settings changed - will take effect on next recording session")
+        self.update_status("Settings saved")
         
     def on_vocabulary(self):
         """Handle vocabulary menu"""
-        self.logger.info("Vocabulary requested")
-        self.vocabulary_requested.emit()
+        self.logger.info("Vocabulary manager requested")
+        
+        # Import here to avoid circular dependency
+        from src.gui.vocabulary_dialog import VocabularyDialog
+        
+        # Get vocabulary file from config
+        vocab_file = self.config.get('vocabulary', {}).get('file', './vocabulary.txt')
+        
+        # Create and show vocabulary dialog
+        dialog = VocabularyDialog(vocab_file, self)
+        dialog.vocabulary_changed.connect(self.on_vocabulary_changed)
+        dialog.exec()
+    
+    def on_vocabulary_changed(self):
+        """Handle vocabulary changes"""
+        self.logger.info("Vocabulary changed - will take effect on next recording session")
+        self.update_status("Vocabulary updated")
         
     def on_export(self):
         """Handle export menu"""
