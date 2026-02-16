@@ -4,7 +4,7 @@ Manage custom vocabulary terms for transcription correction
 """
 
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QPushButton,
+    QWidget, QDialog, QVBoxLayout, QHBoxLayout, QPushButton,
     QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox,
     QLabel, QLineEdit, QTextEdit, QGroupBox, QFormLayout,
     QFileDialog
