@@ -530,13 +530,6 @@ class GUIController(QObject):
     def on_vocabulary_correction(self, original: str, corrected: str):
         """Handle vocabulary correction from worker"""
         self.logger.info(f"Vocabulary correction: '{original}' → '{corrected}'")
-        
-        # Log to analytics
-        from src.analytics import get_analytics
-        analytics = get_analytics()
-        if analytics:
-            analytics.log_vocabulary_correction(original, corrected, "vocabulary_match")
-        
         self.vocabulary_correction.emit(original, corrected)
             
     @pyqtSlot(str)

@@ -36,6 +36,10 @@ class StreamingTranscriber:
         streaming_config = config.get('streaming', {})
         self.min_speech_duration = streaming_config.get('min_speech_duration', 0.5)
         self.vad_enabled = streaming_config.get('vad_enabled', True)
+        self.chunk_duration = streaming_config.get('chunk_size', 5.0)
+        self.overlap_duration = streaming_config.get('chunk_overlap', 1.0)
+        # Offset advances by step (chunk - overlap), not full chunk duration
+        self.step_duration = self.chunk_duration - self.overlap_duration
         
         # Components
         self.buffer = AudioBuffer(config)
@@ -173,12 +177,19 @@ class StreamingTranscriber:
             elapsed = time.time() - start_time
             speed_factor = duration / elapsed if elapsed > 0 else 0
             
+            # Strip Whisper's artificial trailing period from streaming chunks.
+            # Whisper appends a period to every chunk it thinks ends a phrase,
+            # even mid-sentence. Real sentence endings reappear at the start of
+            # the next overlapping chunk and are filtered by timestamp dedup.
+            raw_text = result.get('text', '').strip()
+            if raw_text.endswith('.') and not result.get('is_final', False):
+                raw_text = raw_text[:-1].rstrip()
+            
             # Check if model supports word timestamps
             has_word_timestamps = result.get('has_word_timestamps', False)
             words = result.get('words', [])
             
-            self.logger.info(f"Transcription result: has_timestamps={has_word_timestamps}, words={len(words)}")
-            
+            self.logger.debug(f"Transcription result: has_timestamps={has_word_timestamps}, words={len(words)}")
             if has_word_timestamps and words:
                 # TIMESTAMP-BASED DEDUPLICATION (preferred)
                 self.logger.debug(f"Using timestamp-based deduplication ({len(words)} words)")
@@ -186,19 +197,30 @@ class StreamingTranscriber:
                 new_words = []
                 new_words_data = []
                 
-                for word_data in words:
+                for i, word_data in enumerate(words):
                     # Calculate absolute timestamp
                     absolute_timestamp = self.chunk_start_offset + word_data['start']
                     
                     # Only include words AFTER last emitted timestamp
                     if absolute_timestamp > self.last_emitted_timestamp:
-                        new_words.append(word_data['word'])
+                        word_text = word_data['word']
+                        
+                        # Strip trailing period from last word (Whisper artifact)
+                        # Real sentence-ending periods are preserved when they
+                        # reappear at the start of the next overlapping chunk
+                        if i == len(words) - 1 and word_text.endswith('.'):
+                            word_text = word_text[:-1].rstrip()
+                        
+                        if word_text:
+                            new_words.append(word_text)
                         
                         # Store word with absolute timestamp for SRT export
                         word_with_abs_time = word_data.copy()
+                        word_with_abs_time['word'] = word_text
                         word_with_abs_time['absolute_start'] = absolute_timestamp
                         word_with_abs_time['absolute_end'] = self.chunk_start_offset + word_data['end']
-                        new_words_data.append(word_with_abs_time)
+                        if word_text:
+                            new_words_data.append(word_with_abs_time)
                         
                         # Update last emitted timestamp
                         self.last_emitted_timestamp = absolute_timestamp
@@ -214,14 +236,15 @@ class StreamingTranscriber:
             else:
                 # FALLBACK: No word timestamps available (use full text)
                 self.logger.warning("Word timestamps not available - using full text (duplicates may occur)")
-                text = result.get('text', '').strip()
+                text = raw_text
             
             # Apply custom vocabulary corrections
             if text:
                 text = self.vocabulary.apply_vocabulary(text)
             
-            # Update chunk offset for next chunk
-            self.chunk_start_offset += duration
+            # Update chunk offset for next chunk - advance by STEP (chunk - overlap),
+            # not full duration, to keep absolute timestamps accurate
+            self.chunk_start_offset += self.step_duration
             
             if text:
                 self.logger.info(f"Transcribed ({speed_factor:.1f}x): {text}")

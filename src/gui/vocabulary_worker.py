@@ -64,10 +64,17 @@ class VocabularyWorker(QThread):
             self.logger.debug(f"Processing text: '{text}'")
             
             # Apply vocabulary corrections if enabled
+            vocab_corrected = False
             if self.vocab_manager:
                 text = self.vocab_manager.apply_vocabulary(text)
                 if text != original_text:
+                    vocab_corrected = True
                     self.logger.info(f"Vocabulary changed text: '{original_text}' → '{text}'")
+                    # Log ONLY real vocabulary corrections
+                    from src.analytics import get_analytics
+                    analytics = get_analytics()
+                    if analytics:
+                        analytics.log_vocabulary_correction(original_text, text, "vocabulary_match")
             
             # Apply punctuation improvements (track what changed)
             text_before_punctuation = text
@@ -75,12 +82,11 @@ class VocabularyWorker(QThread):
             
             self.logger.debug(f"Punctuation: before='{text_before_punctuation}', after='{text}'")
             
-            # Log punctuation changes to analytics
+            # Log punctuation changes to analytics (separately from vocab)
             if text != text_before_punctuation:
                 from src.analytics import get_analytics
                 analytics = get_analytics()
                 if analytics:
-                    # Determine which rules might have applied (simplified)
                     rules_applied = []
                     if text[0].isupper() and not text_before_punctuation[0].isupper():
                         rules_applied.append("capitalize_first")
@@ -94,7 +100,7 @@ class VocabularyWorker(QThread):
             else:
                 self.logger.debug("No punctuation changes")
             
-            # Only emit if text changed
+            # Only emit if text changed from original
             if text != original_text:
                 self.logger.info(f"Emitting correction: '{original_text}' → '{text}'")
                 self.correction_ready.emit(original_text, text)

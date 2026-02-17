@@ -27,12 +27,12 @@ class PunctuationImprover:
             return text
         
         # Apply rules in order
-        text = self._remove_whisper_artifacts(text)  # Clean Whisper's artifacts first
+        # NOTE: Whisper already capitalizes correctly and places sentence-ending
+        # punctuation. We only clean artifacts and fix spacing - NOT add periods
+        # or capitalize, as both corrupt streaming chunks mid-sentence.
+        text = self._remove_whisper_artifacts(text)
         text = self._fix_spacing(text)
-        text = self._capitalize_first_word(text)
         text = self._fix_common_issues(text)
-        text = self._add_missing_punctuation(text)
-        text = self._capitalize_after_punctuation(text)
         text = self._final_cleanup(text)
         
         return text

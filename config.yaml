@@ -61,7 +61,7 @@ vocabulary:
     fuzzy_threshold: 0.85
     abydos_algorithm: DoubleMetaphone
 logging:
-  level: INFO
+  level: DEBUG
   file: ./logs/locivox.log
   console: true
 analytics:

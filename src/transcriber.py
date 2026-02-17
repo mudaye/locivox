@@ -75,55 +75,32 @@ class FasterWhisperTranscriber(BaseTranscriber):
             # Detect language if set to auto
             language = None if self.language == "auto" else self.language
             
-            self.logger.info("=== TRANSCRIPTION DEBUG ===")
-            self.logger.info(f"Audio duration: {len(audio_data) / 16000:.2f}s")
-            self.logger.info(f"Requesting word_timestamps=True")
-            
             # Transcribe with word-level timestamps
             segments, info = self.model.transcribe(
                 audio_data,
                 language=language,
-                vad_filter=True,  # Voice activity detection
+                vad_filter=True,
                 beam_size=5,
-                word_timestamps=True  # Enable word-level timestamps
+                word_timestamps=True
             )
-            
-            self.logger.info(f"Transcription info: {info}")
             
             # Collect segments and words
             transcription_segments = []
             full_text = []
             all_words = []
             
-            segment_count = 0
             for segment in segments:
-                segment_count += 1
-                self.logger.info(f"Segment {segment_count}: '{segment.text}'")
-                self.logger.info(f"  Has 'words' attribute: {hasattr(segment, 'words')}")
-                
                 segment_data = {
                     'start': segment.start,
                     'end': segment.end,
                     'text': segment.text.strip()
                 }
                 
-                # Collect word-level timestamps if available
                 if hasattr(segment, 'words'):
-                    self.logger.info(f"  segment.words type: {type(segment.words)}")
-                    
-                    # Convert to list if it's a generator
-                    try:
-                        words_list = list(segment.words) if segment.words else []
-                        self.logger.info(f"  Converted to list: {len(words_list)} words")
-                    except Exception as e:
-                        self.logger.error(f"  Error converting words to list: {e}")
-                        words_list = []
-                    
+                    words_list = list(segment.words) if segment.words else []
                     if words_list:
                         segment_words = []
-                        word_count = 0
                         for word in words_list:
-                            word_count += 1
                             word_data = {
                                 'word': word.word.strip(),
                                 'start': word.start,
@@ -132,35 +109,21 @@ class FasterWhisperTranscriber(BaseTranscriber):
                             }
                             segment_words.append(word_data)
                             all_words.append(word_data)
-                            
-                            if word_count <= 3:  # Log first 3 words
-                                self.logger.info(f"    Word {word_count}: '{word.word}' [{word.start:.2f}-{word.end:.2f}]")
-                        
                         segment_data['words'] = segment_words
-                        self.logger.info(f"  Collected {len(segment_words)} words from segment")
-                    else:
-                        self.logger.warning(f"  words_list is empty")
-                else:
-                    self.logger.warning(f"  Segment has NO 'words' attribute!")
                 
                 transcription_segments.append(segment_data)
                 full_text.append(segment.text.strip())
             
-            self.logger.info(f"Total segments: {segment_count}")
-            self.logger.info(f"Total words collected: {len(all_words)}")
-            
             result = {
                 'text': ' '.join(full_text),
                 'segments': transcription_segments,
-                'words': all_words,  # All words with timestamps
-                'has_word_timestamps': len(all_words) > 0,  # Flag for fallback
+                'words': all_words,
+                'has_word_timestamps': len(all_words) > 0,
                 'language': info.language if hasattr(info, 'language') else self.language,
                 'language_probability': info.language_probability if hasattr(info, 'language_probability') else None
             }
             
-            self.logger.info(f"Result: has_word_timestamps={result['has_word_timestamps']}, words={len(all_words)}")
-            self.logger.info("=== END TRANSCRIPTION DEBUG ===")
-            
+            self.logger.info(f"Transcription complete: {len(all_words)} words, lang={result['language']}")
             return result
             
         except Exception as e:

@@ -369,17 +369,9 @@ class MainWindow(QMainWindow):
         words_with_timestamps = []
         if self.controller:
             words_with_timestamps = self.controller.get_words_with_timestamps()
-            self.logger.info(f"SRT Export: Got {len(words_with_timestamps)} words with timestamps")
-        else:
-            self.logger.warning("SRT Export: No controller available")
         
         if words_with_timestamps:
-            # Use real word-level timestamps
             self.logger.info(f"Exporting SRT with {len(words_with_timestamps)} word timestamps")
-            
-            # Debug: Show first few words
-            if len(words_with_timestamps) > 0:
-                self.logger.debug(f"First word: {words_with_timestamps[0]}")
             
             # Group words into subtitle chunks (max 10 words or 5 seconds per subtitle)
             subtitle_chunks = []
@@ -410,8 +402,6 @@ class MainWindow(QMainWindow):
                     'start': current_start,
                     'end': words_with_timestamps[-1]['absolute_end']
                 })
-            
-            self.logger.info(f"Created {len(subtitle_chunks)} subtitle chunks")
             
             # Write SRT file
             with open(filename, 'w', encoding='utf-8') as f:
