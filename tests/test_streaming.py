@@ -187,8 +187,15 @@ class TestStreamingTranscriber:
         
         # Mock transcriber
         mock_transcriber = MagicMock()
-        mock_transcriber.transcribe.return_value = {'text': 'Test transcription'}
-        mock_transcriber_factory.create_transcriber.return_value = mock_transcriber
+        mock_transcriber.transcribe.return_value = {
+            'text': 'Test transcription',
+            'has_word_timestamps': False,  # Use fallback mode
+            'words': [],
+            'segments': []
+        }
+        # mock_transcriber_factory IS the patched create_transcriber method,
+        # so set return_value directly (not .create_transcriber.return_value)
+        mock_transcriber_factory.return_value = mock_transcriber
         
         transcriber = StreamingTranscriber(basic_config, callback=test_callback)
         transcriber.start()
@@ -226,7 +233,12 @@ class TestStreamingTranscriberEdgeCases:
     def test_empty_transcription(self, mock_transcriber_factory, mock_vad, basic_config):
         """Test handling empty transcription result"""
         mock_transcriber = MagicMock()
-        mock_transcriber.transcribe.return_value = {'text': ''}
+        mock_transcriber.transcribe.return_value = {
+            'text': '',
+            'has_word_timestamps': False,
+            'words': [],
+            'segments': []
+        }
         mock_transcriber_factory.create_transcriber.return_value = mock_transcriber
         
         transcriber = StreamingTranscriber(basic_config, transcriber_factory=mock_transcriber_factory)

@@ -19,13 +19,14 @@ from src.vocabulary import VocabularyManager
 class StreamingTranscriber:
     """Real-time streaming transcriber with background processing"""
     
-    def __init__(self, config: dict, callback: Optional[Callable] = None):
+    def __init__(self, config: dict, callback: Optional[Callable] = None, transcriber_factory = None):
         """
         Initialize streaming transcriber
         
         Args:
             config: Configuration dictionary
             callback: Optional callback function(text, is_final) for results
+            transcriber_factory: Optional factory for dependency injection (Testing)
         """
         self.logger = logging.getLogger('locivox.streaming')
         self.config = config
@@ -39,7 +40,10 @@ class StreamingTranscriber:
         # Components
         self.buffer = AudioBuffer(config)
         self.vad = VoiceActivityDetector(config) if self.vad_enabled else None
-        self.transcriber = TranscriberFactory.create_transcriber(config)
+
+        # Use injected factory if provided, otherwise default to the imported class
+        factory = transcriber_factory or TranscriberFactory
+        self.transcriber = factory.create_transcriber(config)
         self.vocabulary = VocabularyManager(config)
         
         # Threading
