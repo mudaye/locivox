@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "locivox"
-version = "0.4.0"
+version = "0.4.1"
 description = "Local Voice Transcription System - Privacy-first, model-agnostic speech-to-text"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -72,11 +72,11 @@ advanced = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/YOUR_GITHUB_USERNAME/locivox"
-Documentation = "https://github.com/YOUR_GITHUB_USERNAME/locivox#readme"
-Repository = "https://github.com/YOUR_GITHUB_USERNAME/locivox"
-"Bug Tracker" = "https://github.com/YOUR_GITHUB_USERNAME/locivox/issues"
-Changelog = "https://github.com/YOUR_GITHUB_USERNAME/locivox/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/mudaye/locivox"
+Documentation = "https://github.com/mudaye/locivox#readme"
+Repository = "https://github.com/mudaye/locivox"
+"Bug Tracker" = "https://github.com/mudaye/locivox/issues"
+Changelog = "https://github.com/mudaye/locivox/blob/main/CHANGELOG.md"
 
 [project.scripts]
 locivox = "src.cli:main"

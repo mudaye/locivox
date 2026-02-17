@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-02-17
+
+### Fixed
+- Correct GitHub repository URLs in package metadata
+
 ## [0.4.0] - 2026-02-17
 
 ### Added
@@ -88,5 +93,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - colorama 0.4.6
 - tqdm 4.66.1
 
-[Unreleased]: https://github.com/mudaye/locivox/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/mudaye/locivox/releases/tag/v0.1.0
+[Unreleased]: https://github.com/yourusername/locivox/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/yourusername/locivox/releases/tag/v0.1.0
