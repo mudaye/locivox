@@ -7,13 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned
-- Real-time streaming with Voice Activity Detection (VAD)
-- Speaker diarization
-- GUI desktop application
-- Multiple output format support (VTT, CSV, PDF)
-- Custom vocabulary and hotwords
-- Batch file processing
+## [0.4.0] - 2026-02-17
+
+### Added
+- Full PyQt6 GUI with real-time transcription display
+- Settings dialog (model, audio, streaming, vocabulary, advanced tabs)
+- Vocabulary Manager — CRUD, import/export, fuzzy/phonetic test matcher
+- Right-click word correction with optional vocabulary integration
+- Analytics module — session tracking, deduplication/punctuation/vocab events, auto-export
+- Word-level timestamps from Faster-Whisper throughout the pipeline
+- SRT export with real word-level timestamps (millisecond precision)
+- JSON export with `words[]` and `segments[]` arrays
+- Timestamp-based deduplication replacing word-matching (resolves punctuation edge cases)
+- Graceful fallback for models without word timestamp support
+- Custom vocabulary file format v2 (multi-line `correct:` / `- variation` blocks)
+
+### Fixed
+- Vocabulary corrections replacing words with literal "correct" (file format mismatch)
+- Punctuation rules (`add_periods`, `capitalize_first`) firing on mid-sentence chunks
+- Word timestamps lost after recording stopped (worker lifecycle caching)
+- `chunk_start_offset` advancing by full chunk duration instead of step duration
+- Vocabulary analytics misattributed to punctuation events
+- `VocabularyManager` attribute error in GUI worker thread
+- Duplicate words in timestamp export arrays
+
+### Changed
+- Punctuation pipeline now only applies safe rules (spacing, artifact removal)
+  — Whisper's own capitalization and sentence-ending periods are preserved
+- Analytics vocabulary events now only fire on genuine vocabulary matches
+- Debug logging cleaned from production paths (transcriber, streaming, SRT export)
 
 ## [0.1.0] - 2026-02-13
 

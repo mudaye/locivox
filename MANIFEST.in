@@ -1,0 +1,13 @@
+include README.md
+include LICENSE
+include CHANGELOG.md
+include config.yaml
+include vocabulary.txt
+recursive-include src *.yaml *.yml *.txt
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
+recursive-exclude * .DS_Store
+exclude analytics/
+exclude output/
+exclude logs/
+exclude models/

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "locivox"
-version = "0.1.0"
+version = "0.4.0"
 description = "Local Voice Transcription System - Privacy-first, model-agnostic speech-to-text"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -47,6 +47,7 @@ dependencies = [
     "numpy>=1.24.0,<2.0.0",
     "soundfile>=0.12.1",
     "librosa>=0.10.0",
+    "silero-vad>=4.0.0",
     "torch>=2.0.0",
     "torchaudio>=2.0.0",
     "pyyaml>=6.0.0",
@@ -55,6 +56,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+gui = [
+    "PyQt6>=6.5.0",
+]
 dev = [
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
@@ -63,12 +67,8 @@ dev = [
     "mypy>=1.5.0",
     "isort>=5.12.0",
 ]
-gui = [
-    "PyQt6>=6.5.0",
-]
 advanced = [
     "pyannote-audio>=3.0.0",  # Speaker diarization
-    "webrtcvad>=2.0.10",       # Voice activity detection
 ]
 
 [project.urls]
@@ -81,13 +81,27 @@ Changelog = "https://github.com/mudaye/locivox/blob/main/CHANGELOG.md"
 [project.scripts]
 locivox = "src.cli:main"
 locivox-stream = "src.cli_streaming:main"
+locivox-batch = "src.cli_batch:main"
+locivox-watch = "src.watcher:main"
 locivox-gui = "src.gui_main:main"
 
 [tool.setuptools]
-packages = ["src"]
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src", "src.*"]
 
 [tool.setuptools.package-data]
-src = ["*.yaml", "*.yml"]
+src = [
+    "*.yaml",
+    "*.yml",
+    "*.txt",
+]
+"" = [
+    "vocabulary.txt",
+    "config.yaml",
+]
 
 [tool.black]
 line-length = 100
