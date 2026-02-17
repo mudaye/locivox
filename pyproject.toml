@@ -72,11 +72,11 @@ advanced = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/mudaye/locivox"
-Documentation = "https://github.com/mudaye/locivox#readme"
-Repository = "https://github.com/mudaye/locivox"
-"Bug Tracker" = "https://github.com/mudaye/locivox/issues"
-Changelog = "https://github.com/mudaye/locivox/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/YOUR_GITHUB_USERNAME/locivox"
+Documentation = "https://github.com/YOUR_GITHUB_USERNAME/locivox#readme"
+Repository = "https://github.com/YOUR_GITHUB_USERNAME/locivox"
+"Bug Tracker" = "https://github.com/YOUR_GITHUB_USERNAME/locivox/issues"
+Changelog = "https://github.com/YOUR_GITHUB_USERNAME/locivox/blob/main/CHANGELOG.md"
 
 [project.scripts]
 locivox = "src.cli:main"
@@ -86,22 +86,10 @@ locivox-watch = "src.watcher:main"
 locivox-gui = "src.gui_main:main"
 
 [tool.setuptools]
-package-dir = {"" = "."}
-
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["src", "src.*"]
+packages = ["src", "src.gui"]
 
 [tool.setuptools.package-data]
-src = [
-    "*.yaml",
-    "*.yml",
-    "*.txt",
-]
-"" = [
-    "vocabulary.txt",
-    "config.yaml",
-]
+src = ["*.yaml", "*.yml", "*.txt"]
 
 [tool.black]
 line-length = 100
